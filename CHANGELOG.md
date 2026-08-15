@@ -9,6 +9,24 @@ which it will move to [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- `infrastructure/database/`: SQLAlchemy ORM models for all six aggregate
+  roots plus `ApplicationStatusEventORM` (child table) and an
+  `application_answers` many-to-many join table, mapped separately from
+  the Pydantic domain models (repositories, Milestone 5, are the
+  translation boundary between the two).
+- `UTCDateTime`, a custom SQLAlchemy type that requires timezone-aware
+  datetimes on write and re-attaches UTC on read, since SQLite has no
+  native timezone-aware datetime type -- resolves a risk flagged during
+  the Milestone 2 architectural review.
+- A partial unique index on `JobPosting(platform, external_id)` (only
+  enforced when `external_id IS NOT NULL`), giving connectors a
+  database-enforced deduplication key instead of relying on `url` alone
+  -- resolves another risk flagged in that same review.
+- `create_engine_from_settings()`, `create_session_factory()`, and
+  `session_scope()` in `infrastructure/database/session.py`. SQLite
+  foreign key enforcement (`PRAGMA foreign_keys=ON`) is wired
+  automatically per connection, since SQLite ignores `ON DELETE
+  CASCADE`/`SET NULL` without it.
 - `infrastructure/config/settings.py`: a single, validated `Settings`
   object (pydantic-settings) loaded from environment variables/`.env`,
   covering environment, database URL, log level/directory, and AI
@@ -68,3 +86,10 @@ which it will move to [Semantic Versioning](https://semver.org/).
   directories, opening file handles) and depends on `Settings`, both
   disqualifying for `utils/` per that package's own dependency-free, no-I/O
   rule.
+
+### Note
+
+- ORM tables include an `updated_at` bookkeeping column not yet present
+  on the corresponding domain models. This is deliberate, low-cost
+  future-proofing flagged during the Milestone 2 review; Milestone 5's
+  repositories decide whether/how to surface it to domain objects.

@@ -28,8 +28,13 @@ simple CLI, with no browser or AI dependency yet.
 - ✅ **M3 — Configuration & logging**: Pydantic `Settings`, `.env` loading,
   centralized logging configuration. Console output is human-readable
   text; a rotating file handler writes structured JSON alongside it.
-- ⬜ **M4 — Database layer**: SQLAlchemy ORM models + SQLite session
-  management, mapped 1:1 to domain models where reasonable.
+- ✅ **M4 — Database layer**: SQLAlchemy ORM models + SQLite session
+  management, mapped to domain models. Includes a `UTCDateTime` custom
+  type (SQLite has no native timezone-aware datetime type) and a partial
+  unique index on `(platform, external_id)` for `JobPosting` deduplication
+  -- both resolving risks flagged during the Milestone 2 architectural
+  review. `PRAGMA foreign_keys=ON` is enforced automatically per
+  connection so cascade deletes actually work under SQLite.
 - ⬜ **M5 — Repository interfaces & SQLite implementations**:
   `ProfileRepository`, `ResumeRepository`, `ApplicationRepository`
   (interfaces in `application/interfaces/`) plus their SQLite
