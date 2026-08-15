@@ -1,0 +1,21 @@
+# Runtime dependencies for JAAP.
+# Phase 1 needs only the first group below; later groups are added
+# as their corresponding phase is implemented (kept here now so the
+# roadmap and the dependency list stay in sync).
+
+# --- Phase 1: Core domain, database, configuration ---
+pydantic>=2.7,<3.0
+SQLAlchemy>=2.0,<3.0
+python-dotenv>=1.0,<2.0
+
+# --- Phase 2: Browser automation (added when Phase 2 begins) ---
+# playwright>=1.45,<2.0
+
+# --- Phase 3: AI providers (added when Phase 3 begins) ---
+# anthropic>=0.30,<1.0
+# ollama>=0.3,<1.0
+
+# --- Future: FastAPI / NiceGUI (Phase 5) ---
+# fastapi>=0.111,<1.0
+# uvicorn>=0.30,<1.0
+# nicegui>=1.4,<2.0
