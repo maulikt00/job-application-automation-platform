@@ -17,11 +17,17 @@ simple CLI, with no browser or AI dependency yet.
 
 - ✅ **M1 — Architecture & repository scaffolding** (this milestone):
   Clean Architecture design, ADR-0001, directory structure, project docs.
-- ⬜ **M2 — Domain models**: `Profile`, `Resume`, `CoverLetterTemplate`,
+- ✅ **M2 — Domain models**: `Profile`, `Resume`, `CoverLetterTemplate`,
   `Answer`, `JobPosting`, `Application`, `ApplicationStatus` as Pydantic
-  models/dataclasses, with unit tests and no persistence yet.
-- ⬜ **M3 — Configuration & logging**: Pydantic `Settings`, `.env` loading,
-  centralized logging configuration.
+  models, with unit tests and no persistence yet. Includes a
+  post-implementation refinement (ADR-0003): an `Entity` base class for
+  identity-based equality/hashing, a mutation strategy split between
+  `validate_assignment` and a guarded `transition_to()`, and an open,
+  connector-extensible `JobPosting.platform`/`external_id`/
+  `platform_metadata`.
+- ✅ **M3 — Configuration & logging**: Pydantic `Settings`, `.env` loading,
+  centralized logging configuration. Console output is human-readable
+  text; a rotating file handler writes structured JSON alongside it.
 - ⬜ **M4 — Database layer**: SQLAlchemy ORM models + SQLite session
   management, mapped 1:1 to domain models where reasonable.
 - ⬜ **M5 — Repository interfaces & SQLite implementations**:
