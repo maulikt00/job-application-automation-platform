@@ -34,10 +34,24 @@ lifecycle and identity worth managing independently?**
 by embedded object. This is what allows each repository to load, save, and
 enforce invariants on only its own aggregate, independent of the rest.
 
+**Entity identity (ADR-0003):** all six aggregate roots inherit from a
+shared `Entity` base class rather than `BaseModel` directly. `Entity`
+defines equality and hashing based solely on `(type, id)`, not on any other
+field — reflecting that two representations of the same entity (e.g. one
+freshly loaded, one locally mutated) are the same object regardless of
+what their other fields currently hold. `ApplicationStatusEvent` is
+intentionally excluded from this — as a value object, its equality
+remains structural.
+
 ## Diagram
 
 ```mermaid
 classDiagram
+    class Entity {
+        <<Base>>
+        +id
+    }
+
     class Profile {
         <<AggregateRoot>>
         +ProfileId id
@@ -79,6 +93,8 @@ classDiagram
         +str title
         +str url
         +str platform
+        +str? external_id
+        +dict~str,str~ platform_metadata
         +str description
     }
 
@@ -112,6 +128,13 @@ classDiagram
         +str note
     }
 
+    Entity <|-- Profile
+    Entity <|-- Resume
+    Entity <|-- CoverLetterTemplate
+    Entity <|-- Answer
+    Entity <|-- JobPosting
+    Entity <|-- Application
+
     Profile "1" --> "0..*" Resume : owns
     Profile "1" --> "0..*" CoverLetterTemplate : owns
     Profile "1" --> "0..*" Answer : owns
@@ -127,6 +150,7 @@ classDiagram
     Application "1" --> "1" ApplicationStatus : current status
 ```
 
+`<|--` = inheritance (all aggregate roots inherit identity semantics from `Entity`).
 `-->` = reference-by-ID association across aggregate boundaries.
 `*--` = composition, owned with no independent identity.
 
@@ -169,6 +193,43 @@ This is a deliberate split between two different kinds of rules:
 Putting readiness checks in the constructor would make it structurally
 impossible to represent a real, valid in-progress draft — the presence
 of that state is expected, not an error condition.
+
+### Aggregate Mutation Strategy (ADR-0003)
+
+Two tiers, depending on whether a field carries a cross-field invariant:
+
+- **Single-field validation** (`Resume.file_path`, `Answer.question_key`,
+  `JobPosting.platform`, `Profile.email`, etc.): `Profile`, `Resume`,
+  `CoverLetterTemplate`, `Answer`, and `JobPosting` all enable
+  `validate_assignment=True`, so a later reassignment re-runs the same
+  validator that ran at construction — closing the gap where Pydantic
+  otherwise validates only once, at creation.
+- **Cross-field invariant** (`Application.current_status` must always
+  match the most recent `status_history` entry): `validate_assignment`
+  can't safely apply here, since keeping both fields consistent requires
+  two sequential assignments. Instead, `Application` overrides
+  `__setattr__` to reject direct assignment to `current_status` or
+  `status_history` from outside the class, raising `DomainError`.
+  `transition_to()` remains the only sanctioned way to change status.
+  Fields without a cross-field invariant (`resume_id`,
+  `cover_letter_template_id`, `answer_ids`) remain freely settable, which
+  is what allows the progressive Draft lifecycle described above.
+
+### Open Platform Identifiers & Connector Extension Point (ADR-0003)
+
+`JobPosting.platform` is a plain, normalized, non-empty string rather than
+a closed `Enum` — `JobPlatform` remains as a small class of suggested
+constants (`GREENHOUSE`, `LEVER`, `WORKDAY`, `LINKEDIN`, `OTHER`) for
+convenience, but any connector may supply a new platform string without
+modifying this model. `JobPosting` also carries `external_id` (a stable,
+connector-supplied dedup/re-fetch key, since `url` alone isn't reliable
+across scrapes) and `platform_metadata: dict[str, str]` (an open bag for
+any additional connector-specific data). Together, these mean a new
+job-site connector — including LinkedIn — is purely additive: it never
+requires a change to `JobPosting` or any other existing domain file.
+
+See [ADR-0003](../adr/0003-entity-identity-and-connector-extensibility.md)
+for the full reasoning and alternatives considered for all of the above.
 
 ## Repositories
 
