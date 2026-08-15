@@ -86,11 +86,12 @@ classDiagram
         <<AggregateRoot>>
         +ApplicationId id
         +ProfileId profile_id
-        +ResumeId resume_id
         +JobPostingId job_posting_id
-        +TemplateId cover_letter_template_id
+        +ResumeId? resume_id
+        +TemplateId? cover_letter_template_id
         +list~AnswerId~ answer_ids
         +ApplicationStatus current_status
+        +list~ApplicationStatusEvent~ status_history
         +datetime created_at
     }
 
@@ -138,10 +139,36 @@ classDiagram
 | Profile → Answer | 1 → 0..* | one profile, many reusable answers |
 | Profile → Application | 1 → 0..* | one profile, many applications over time |
 | JobPosting → Application | 1 → 0..* | same posting can have multiple attempts |
-| Application → Resume | 0..* → 1 | many applications can reuse the same resume |
-| Application → CoverLetterTemplate | 0..* → 0..1 | optional; may use an unsaved one-off letter |
-| Application → Answer | 0..* ↔ 0..* | true many-to-many; needs a join table once persisted (Milestone 4) |
+| Application → Resume | 0..* → 0..1 | optional until submission; required by `SubmitApplicationUseCase`, not the model |
+| Application → CoverLetterTemplate | 0..* → 0..1 | optional; may use an unsaved one-off letter, or none at all |
+| Application → Answer | 0..* ↔ 0..* | true many-to-many; empty at Draft, needs a join table once persisted (Milestone 4) |
 | Application → ApplicationStatusEvent | 1 → 1..* | append-only history, always ≥1 event (`DRAFT`) |
+
+### Lifecycle-Based Validation
+
+`Application` can exist in a `DRAFT` state with only `profile_id`,
+`job_posting_id`, and system metadata (`id`, `created_at`,
+`current_status=DRAFT`, an initial `status_history` entry) required.
+`resume_id`, `cover_letter_template_id`, and `answer_ids` are populated
+progressively as the user works through the application.
+
+This is a deliberate split between two different kinds of rules:
+
+- **Domain invariants** (enforced in the `Application` model itself):
+  `status_history` is append-only, `current_status` always equals the
+  most recent event, and status transitions are structurally valid
+  (e.g., `DRAFT` can't jump straight to `OFFER`). These protect the
+  object's own consistency and hold regardless of *why* something is
+  happening.
+- **Business process rules** (enforced in use cases, e.g.
+  `SubmitApplicationUseCase`, Milestone 6): "a resume must be attached
+  before submission," "the job posting must still be open," etc. These
+  are about *when an action is allowed*, which is contextual and can
+  change without the domain model needing to change.
+
+Putting readiness checks in the constructor would make it structurally
+impossible to represent a real, valid in-progress draft — the presence
+of that state is expected, not an error condition.
 
 ## Repositories
 
