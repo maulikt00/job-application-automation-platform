@@ -30,7 +30,7 @@ def create_engine_from_settings(settings: Settings) -> Engine:
     `data/` hasn't been created yet. In-memory SQLite URLs are left alone.
     """
     url = make_url(settings.database_url)
-    if url.drivername.startswith("sqlite") and url.database not in (None, "", ":memory:"):
+    if url.drivername.startswith("sqlite") and url.database and url.database != ":memory:":
         Path(url.database).parent.mkdir(parents=True, exist_ok=True)
 
     engine = create_engine(url, future=True)
