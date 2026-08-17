@@ -20,9 +20,30 @@ Schema notes:
   - `JobPosting`'s partial unique index on (platform, external_id) enforces
     the deduplication key identified during the Milestone 2 architectural
     review: `url` alone is not a reliable dedup key across scrapes.
-  - Foreign keys use ON DELETE CASCADE; SQLite only enforces this when
-    "PRAGMA foreign_keys=ON" is set per-connection, which session.py wires
-    up automatically.
+  - Foreign keys are enforced via "PRAGMA foreign_keys=ON", which
+    session.py wires up automatically per-connection (SQLite ignores FK
+    constraints otherwise).
+
+See docs/adr/0004-session-loading-ordering-and-restrictive-deletes.md for
+the reasoning behind the following, added during a Milestone 4 review:
+  - `ApplicationORM.status_events` and `.answer_associations` use
+    `lazy="selectin"`: a repository reconstructing an Application domain
+    object always needs both to build `status_history`/`answer_ids`, so
+    eager-loading them removes the most common way to hit
+    DetachedInstanceError after a session closes. Any other
+    relationship/attribute access needed for domain reconstruction must
+    still happen while its session is open -- this eager-loading covers
+    the common case, not every case.
+  - Application <-> Answer is an ordered association object
+    (`ApplicationAnswerORM`, with a `position` column), not a plain
+    many-to-many table, since SQLAlchemy's `secondary=` pattern can't set
+    extra columns on the join row and `Application.answer_ids` is an
+    ordered tuple in the domain model.
+  - `ApplicationORM.resume_id`, `.cover_letter_template_id`, and
+    `ApplicationAnswerORM.answer_id` all use `ON DELETE RESTRICT`, not
+    CASCADE/SET NULL: deleting a Resume/CoverLetterTemplate/Answer still
+    referenced by an Application now fails loudly instead of silently
+    losing the historical record of what was used.
 """
 
 from __future__ import annotations
@@ -32,12 +53,10 @@ from datetime import datetime, timezone
 
 from sqlalchemy import (
     JSON,
-    Column,
     ForeignKey,
     Index,
     Integer,
     String,
-    Table,
     Text,
     UniqueConstraint,
     text,
@@ -160,19 +179,6 @@ class JobPostingORM(Base):
     applications: Mapped[list[ApplicationORM]] = relationship(back_populates="job_posting")
 
 
-# Many-to-many join table for Application <-> Answer (see Milestone 2's
-# domain-model diagram: this relationship needs a join table once persisted).
-# A plain Table + Column is used here (not mapped_column, which only
-# applies inside an ORM-mapped class body) since this table has no
-# corresponding domain object of its own -- it's purely a join table.
-application_answers = Table(
-    "application_answers",
-    Base.metadata,
-    Column("application_id", Uuid, ForeignKey("applications.id", ondelete="CASCADE"), primary_key=True),
-    Column("answer_id", Uuid, ForeignKey("answers.id", ondelete="CASCADE"), primary_key=True),
-)
-
-
 class ApplicationORM(Base):
     __tablename__ = "applications"
 
@@ -183,11 +189,14 @@ class ApplicationORM(Base):
     job_posting_id: Mapped[uuid.UUID] = mapped_column(
         Uuid, ForeignKey("job_postings.id", ondelete="CASCADE"), nullable=False, index=True
     )
+    # RESTRICT, not SET NULL: silently nulling out which resume/template
+    # was used on a past application is the same silent-history-loss
+    # footgun as the Answer join table (see ADR-0004).
     resume_id: Mapped[uuid.UUID | None] = mapped_column(
-        Uuid, ForeignKey("resumes.id", ondelete="SET NULL"), nullable=True
+        Uuid, ForeignKey("resumes.id", ondelete="RESTRICT"), nullable=True
     )
     cover_letter_template_id: Mapped[uuid.UUID | None] = mapped_column(
-        Uuid, ForeignKey("cover_letter_templates.id", ondelete="SET NULL"), nullable=True
+        Uuid, ForeignKey("cover_letter_templates.id", ondelete="RESTRICT"), nullable=True
     )
     current_status: Mapped[str] = mapped_column(String, nullable=False)
     created_at: Mapped[datetime] = mapped_column(UTCDateTime, nullable=False, default=_utc_now)
@@ -199,13 +208,23 @@ class ApplicationORM(Base):
     job_posting: Mapped[JobPostingORM] = relationship(back_populates="applications")
     resume: Mapped[ResumeORM | None] = relationship()
     cover_letter_template: Mapped[CoverLetterTemplateORM | None] = relationship()
+
+    # Eager-loaded (lazy="selectin"): a repository reconstructing the
+    # Application domain object always needs these to build
+    # status_history/answer_ids, so loading them by default removes the
+    # most common way to hit DetachedInstanceError after the session
+    # that loaded the Application closes. See ADR-0004.
     status_events: Mapped[list[ApplicationStatusEventORM]] = relationship(
         back_populates="application",
         cascade="all, delete-orphan",
         order_by="ApplicationStatusEventORM.sequence",
+        lazy="selectin",
     )
-    answers: Mapped[list[AnswerORM]] = relationship(
-        secondary=application_answers, backref="applications"
+    answer_associations: Mapped[list[ApplicationAnswerORM]] = relationship(
+        back_populates="application",
+        cascade="all, delete-orphan",
+        order_by="ApplicationAnswerORM.position",
+        lazy="selectin",
     )
 
 
@@ -215,8 +234,12 @@ class ApplicationStatusEventORM(Base):
     `id` here is purely an ORM row identity (auto-incrementing integer) --
     it has no domain-visible counterpart, since value objects have no
     identity of their own (see domain/models/application.py). `sequence`
-    provides deterministic ordering even if two events share a
-    `changed_at` timestamp (e.g. sub-second transitions in tests).
+    is NOT independently computed by the repository: Application.status_history
+    is already a correctly ordered tuple by construction (transition_to()
+    only ever appends to it), so the repository simply assigns
+    `sequence = index` while enumerating that tuple. This also provides
+    deterministic ordering even if two events share a `changed_at`
+    timestamp (e.g. sub-second transitions in tests). See ADR-0004.
     """
 
     __tablename__ = "application_status_events"
@@ -234,3 +257,39 @@ class ApplicationStatusEventORM(Base):
     note: Mapped[str | None] = mapped_column(String, nullable=True)
 
     application: Mapped[ApplicationORM] = relationship(back_populates="status_events")
+
+
+class ApplicationAnswerORM(Base):
+    """Association object for the Application <-> Answer relationship.
+
+    A plain SQLAlchemy `secondary=` many-to-many table cannot carry an
+    extra column (like `position`) on the join row -- setting one
+    requires this "association object" pattern instead. `position`
+    preserves the ordering of `Application.answer_ids` (an ordered tuple
+    in the domain model) across a save/load round trip; see ADR-0004 for
+    why this ordering was judged worth preserving (it may matter to the
+    future autofill engine, e.g. matching the order questions appeared on
+    the source form).
+
+    `answer_id`'s foreign key uses ON DELETE RESTRICT, not CASCADE:
+    deleting an Answer still referenced by an Application now fails
+    loudly instead of silently erasing the historical join row.
+    """
+
+    __tablename__ = "application_answers"
+    __table_args__ = (
+        UniqueConstraint(
+            "application_id", "position", name="uq_application_answer_position"
+        ),
+    )
+
+    application_id: Mapped[uuid.UUID] = mapped_column(
+        Uuid, ForeignKey("applications.id", ondelete="CASCADE"), primary_key=True
+    )
+    answer_id: Mapped[uuid.UUID] = mapped_column(
+        Uuid, ForeignKey("answers.id", ondelete="RESTRICT"), primary_key=True
+    )
+    position: Mapped[int] = mapped_column(Integer, nullable=False)
+
+    application: Mapped[ApplicationORM] = relationship(back_populates="answer_associations")
+    answer: Mapped[AnswerORM] = relationship()
