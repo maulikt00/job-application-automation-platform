@@ -34,7 +34,13 @@ simple CLI, with no browser or AI dependency yet.
   unique index on `(platform, external_id)` for `JobPosting` deduplication
   -- both resolving risks flagged during the Milestone 2 architectural
   review. `PRAGMA foreign_keys=ON` is enforced automatically per
-  connection so cascade deletes actually work under SQLite.
+  connection so cascade deletes actually work under SQLite. A follow-up
+  lead-engineer review (ADR-0004) added eager loading for
+  `status_events`/`answer_associations`, replaced the plain
+  `Application`↔`Answer` join table with an ordered association object,
+  and switched `resume_id`/`cover_letter_template_id`/`answer_id`
+  foreign keys from CASCADE/SET NULL to RESTRICT to prevent silent
+  historical data loss.
 - ⬜ **M5 — Repository interfaces & SQLite implementations**:
   `ProfileRepository`, `ResumeRepository`, `ApplicationRepository`
   (interfaces in `application/interfaces/`) plus their SQLite

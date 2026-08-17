@@ -9,6 +9,14 @@ which it will move to [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- `docs/adr/0004-session-loading-ordering-and-restrictive-deletes.md`: a
+  lead-engineer review of the Milestone 4 database layer, addressing four
+  issues before Milestone 5 builds repositories against it (see Changed,
+  below, for the resulting code changes).
+- `ApplicationAnswerORM`, an association object for `Application` <->
+  `Answer` carrying a `position` column, replacing a plain many-to-many
+  join table -- preserves `Application.answer_ids`' order across a
+  save/load round trip, which a plain `secondary=` table cannot do.
 - `infrastructure/database/`: SQLAlchemy ORM models for all six aggregate
   roots plus `ApplicationStatusEventORM` (child table) and an
   `application_answers` many-to-many join table, mapped separately from
@@ -78,6 +86,16 @@ which it will move to [Semantic Versioning](https://semver.org/).
 
 ### Changed
 
+- `ApplicationORM.status_events` and the new `.answer_associations` now
+  use `lazy="selectin"` (eager loading), removing the most common way to
+  hit `DetachedInstanceError` when a repository accesses either
+  relationship after its loading session has closed.
+- `ApplicationORM.resume_id`, `.cover_letter_template_id`, and
+  `ApplicationAnswerORM.answer_id` foreign keys changed from `ON DELETE
+  CASCADE`/`SET NULL` to `ON DELETE RESTRICT`: deleting a
+  `Resume`/`CoverLetterTemplate`/`Answer` still referenced by an
+  `Application` now fails loudly instead of silently erasing or nulling
+  the historical record of what was used.
 - `requirements.txt`: `pydantic` → `pydantic[email]`, required for
   `Profile.email`'s `EmailStr` validation to work on a clean install.
   Added `pydantic-settings` for `Settings`.
