@@ -165,7 +165,7 @@ classDiagram
 | JobPosting → Application | 1 → 0..* | same posting can have multiple attempts |
 | Application → Resume | 0..* → 0..1 | optional until submission; required by `SubmitApplicationUseCase`, not the model |
 | Application → CoverLetterTemplate | 0..* → 0..1 | optional; may use an unsaved one-off letter, or none at all |
-| Application → Answer | 0..* ↔ 0..* | true many-to-many; empty at Draft, needs a join table once persisted (Milestone 4) |
+| Application → Answer | 0..* ↔ 0..* | true many-to-many; empty at Draft; persisted as an ordered association object, not a plain join table, so `answer_ids`' order survives a save/load round trip (see [ADR-0004](../adr/0004-session-loading-ordering-and-restrictive-deletes.md)) |
 | Application → ApplicationStatusEvent | 1 → 1..* | append-only history, always ≥1 event (`DRAFT`) |
 
 ### Lifecycle-Based Validation
