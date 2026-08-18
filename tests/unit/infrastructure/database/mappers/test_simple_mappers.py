@@ -4,6 +4,8 @@ database required. Application's mapper is more involved and gets its
 own test file (test_application_mapper.py).
 """
 
+import pytest
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -61,6 +63,29 @@ def test_resume_round_trips_through_orm_including_path_conversion() -> None:
     result = resume_mapper.to_domain(orm)
     assert result == domain
     assert result.file_path == Path("resumes/backend.pdf")
+
+def test_update_orm_uses_as_posix_not_str_for_file_path(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Regression guard: verifies .as_posix() is the method actually
+    called, not just that the output happens to look right on this
+    platform (see resume_mapper.py's module docstring)."""
+    domain = Resume(
+        id=new_resume_id(), profile_id=new_profile_id(), label="Backend",
+        file_path=Path("resumes/backend.pdf"),
+    )
+    orm = ResumeORM(id=domain.id)
+
+    call_count = 0
+    original_as_posix = Path.as_posix
+
+    def spy_as_posix(self: Path) -> str:
+        nonlocal call_count
+        call_count += 1
+        return original_as_posix(self)
+
+    monkeypatch.setattr(Path, "as_posix", spy_as_posix)
+    resume_mapper.update_orm(domain, orm)
+
+    assert call_count == 1
 
 
 def test_cover_letter_template_round_trips_through_orm() -> None:
