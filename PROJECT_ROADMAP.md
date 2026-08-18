@@ -41,10 +41,15 @@ simple CLI, with no browser or AI dependency yet.
   and switched `resume_id`/`cover_letter_template_id`/`answer_id`
   foreign keys from CASCADE/SET NULL to RESTRICT to prevent silent
   historical data loss.
-- ⬜ **M5 — Repository interfaces & SQLite implementations**:
-  `ProfileRepository`, `ResumeRepository`, `ApplicationRepository`
-  (interfaces in `application/interfaces/`) plus their SQLite
-  implementations, with unit tests against an in-memory/temp SQLite DB.
+- ✅ **M5 — Repository interfaces & SQLite implementations**: all six
+  repository interfaces (`Protocol`-based, ADR-0005) plus their SQLite
+  implementations, with a dedicated mapper module per aggregate for
+  domain/ORM translation. `Application`'s save reconciles status history
+  (append-only) and answer associations (full delete-and-recreate, with
+  the mid-flush requirement that turned up during development) via two
+  different strategies -- see ADR-0005. Database-level `RESTRICT`
+  violations (ADR-0004) are translated into a new domain-level
+  `ReferentialIntegrityError` at the repository boundary.
 - ⬜ **M6 — Core use cases**: `CreateProfileUseCase`,
   `AddResumeUseCase`, `SelectResumeUseCase`,
   `SaveCoverLetterTemplateUseCase`, `RecordApplicationUseCase`, each with
