@@ -9,6 +9,23 @@ which it will move to [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- `docs/adr/0005-repository-interfaces-and-mapping-strategy.md`: the
+  design decisions behind Milestone 5 (Protocol vs ABC, mapper module
+  placement, `get()` semantics, Application's two-strategy save, and
+  exception translation).
+- Six repository `Protocol` interfaces in
+  `application/interfaces/repositories.py`: `ProfileRepository`,
+  `ResumeRepository`, `CoverLetterTemplateRepository`,
+  `AnswerRepository`, `JobPostingRepository`, `ApplicationRepository`.
+- Six SQLite-backed repository implementations in
+  `infrastructure/database/repositories/`, each verified to structurally
+  satisfy its Protocol interface via mypy.
+- `infrastructure/database/mappers/`: one domain/ORM translation module
+  per aggregate, independently unit-tested without a database.
+- `ReferentialIntegrityError` in `domain/exceptions.py`: repositories
+  translate `RESTRICT`-triggered `IntegrityError`s (ADR-0004) into this
+  domain-level exception, so the application layer never needs to import
+  `sqlalchemy.exc`.
 - `docs/adr/0004-session-loading-ordering-and-restrictive-deletes.md`: a
   lead-engineer review of the Milestone 4 database layer, addressing four
   issues before Milestone 5 builds repositories against it (see Changed,

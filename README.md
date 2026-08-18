@@ -26,8 +26,11 @@ becoming unmaintainable.
 
 ## Status
 
-🚧 Early development. See [PROJECT_ROADMAP.md](PROJECT_ROADMAP.md) for what's
-built vs. planned. Currently in **Phase 1: Core Domain & Data**.
+🚧 Active development. See [PROJECT_ROADMAP.md](PROJECT_ROADMAP.md) for the
+full milestone breakdown. Milestones 1–5 of **Phase 1: Core Domain & Data**
+are complete: domain models, configuration/logging, the SQLite database
+layer, and repository implementations for all six aggregates. No use cases
+or CLI yet — those are next (Milestone 6+).
 
 ## Architecture
 
@@ -50,9 +53,9 @@ See [PROJECT_ROADMAP.md](PROJECT_ROADMAP.md) for the milestone-level breakdown.
 
 ## Getting Started
 
-> Setup instructions will be filled in as Phase 1 produces a runnable CLI.
-> At this stage the project is architecture + scaffolding only — there is
-> no functionality to run yet.
+> There's no CLI yet (that's Milestone 7) -- but the domain models,
+> configuration, logging, and full SQLite persistence layer are built,
+> tested, and usable as a library today.
 
 ```bash
 python -m venv .venv
@@ -63,11 +66,11 @@ pip install -r requirements.txt -r requirements-dev.txt
 ## Running Tests
 
 ```bash
-pytest
+pytest tests/unit -v
 ```
 
-(No tests exist yet — this will be populated starting with Milestone 2's
-domain model tests.)
+115 tests, covering domain models, configuration/logging, the database
+layer, and all six repositories.
 
 ## Tech Stack
 

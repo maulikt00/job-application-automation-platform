@@ -49,3 +49,17 @@ class InvalidStatusTransitionError(DomainError):
             f"Cannot transition Application from '{current_status.value}' "
             f"to '{attempted_status.value}'."
         )
+
+
+class ReferentialIntegrityError(DomainError):
+    """Raised when an operation would violate a referential integrity
+    constraint enforced by the persistence layer -- e.g. deleting a
+    Resume, CoverLetterTemplate, or Answer that is still referenced by
+    an Application (see ADR-0004's RESTRICT foreign keys).
+
+    Repositories catch the underlying infrastructure exception (e.g.
+    SQLAlchemy's IntegrityError) and re-raise this instead, so the
+    application layer only ever handles exceptions in the domain's own
+    vocabulary -- it never needs to know what database library, if any,
+    is underneath (see ARCHITECTURE.md's dependency rule).
+    """
