@@ -4,11 +4,11 @@ database required. Application's mapper is more involved and gets its
 own test file (test_application_mapper.py).
 """
 
-import pytest
-
 from __future__ import annotations
 
 from pathlib import Path
+
+import pytest
 
 from jaap.domain.models import (
     Answer,
