@@ -30,5 +30,5 @@ def to_domain(orm: ResumeORM) -> Resume:
 def update_orm(domain: Resume, orm: ResumeORM) -> None:
     orm.profile_id = domain.profile_id
     orm.label = domain.label
-    orm.file_path = domain.file_path.as_posix() #str(domain.file_path)
+    orm.file_path = domain.file_path.as_posix()
     orm.uploaded_at = domain.uploaded_at
