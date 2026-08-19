@@ -64,10 +64,19 @@ def test_resume_round_trips_through_orm_including_path_conversion() -> None:
     assert result == domain
     assert result.file_path == Path("resumes/backend.pdf")
 
+
 def test_update_orm_uses_as_posix_not_str_for_file_path(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Regression guard: verifies .as_posix() is the method actually
-    called, not just that the output happens to look right on this
-    platform (see resume_mapper.py's module docstring)."""
+    """Regression guard for a real bug: `str(Path(...))` renders using the
+    OS's native separator (backslashes on Windows), so a path stored from
+    a Windows machine fails to parse back correctly as a path on
+    Linux/Mac, and vice versa (this project's SQLite file can plausibly
+    move between machines). `.as_posix()` always normalizes to forward
+    slashes on write. This test runs on POSIX, where `str()` and
+    `.as_posix()` happen to produce identical output for forward-slash
+    input -- so it verifies the *method actually called* directly,
+    rather than relying on output that wouldn't catch a regression back
+    to `str()` on this platform.
+    """
     domain = Resume(
         id=new_resume_id(), profile_id=new_profile_id(), label="Backend",
         file_path=Path("resumes/backend.pdf"),
