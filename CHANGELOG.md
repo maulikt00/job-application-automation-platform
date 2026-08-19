@@ -9,6 +9,23 @@ which it will move to [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- `docs/adr/0006-core-use-cases-and-exception-placement.md`: the design
+  decisions behind Milestone 6 (the finalized use case set replacing the
+  original `RecordApplicationUseCase` placeholder, exception placement,
+  deferred DTOs, and `StartApplicationUseCase`'s validation scope).
+- Six use cases in `application/use_cases/`: `CreateProfileUseCase`,
+  `AddResumeUseCase`, `SaveCoverLetterTemplateUseCase`,
+  `SaveAnswerUseCase`, `StartApplicationUseCase`,
+  `SubmitApplicationUseCase`. Each is constructor-injected with only the
+  repository `Protocol` interfaces it needs.
+- `application/exceptions.py`: `UseCaseError` (base),
+  `ProfileNotFoundError`, `JobPostingNotFoundError`,
+  `ApplicationNotFoundError`, `ApplicationNotReadyForSubmissionError` --
+  business-rule violations, kept distinct from `domain/exceptions.py`'s
+  invariant violations per ADR-0002.
+- `tests/unit/application/use_cases/fakes.py`: in-memory fake
+  repositories satisfying every repository `Protocol`, used to unit-test
+  all six use cases with no database involved.
 - `docs/adr/0005-repository-interfaces-and-mapping-strategy.md`: the
   design decisions behind Milestone 5 (Protocol vs ABC, mapper module
   placement, `get()` semantics, Application's two-strategy save, and
@@ -100,6 +117,17 @@ which it will move to [Semantic Versioning](https://semver.org/).
   expectations.
 - Project metadata: `LICENSE` (MIT), `.gitignore`, `.env.example`,
   `requirements.txt`, `requirements-dev.txt`, `pytest.ini`.
+
+### Fixed
+
+- `resume_mapper.py`: `Resume.file_path` is now stored via `.as_posix()`
+  instead of `str()`. `str(Path(...))` renders using the OS's native
+  separator (backslashes on Windows), so a path saved from a Windows
+  machine failed to parse back correctly as a path on Linux/Mac, and
+  vice versa. Caught on a real Windows checkout during Milestone 6
+  development; `.as_posix()` normalizes to forward slashes on write
+  regardless of OS, and `Path(...)` parses forward slashes correctly on
+  read regardless of OS, making storage genuinely cross-platform.
 
 ### Changed
 
