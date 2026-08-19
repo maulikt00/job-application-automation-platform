@@ -50,10 +50,16 @@ simple CLI, with no browser or AI dependency yet.
   different strategies -- see ADR-0005. Database-level `RESTRICT`
   violations (ADR-0004) are translated into a new domain-level
   `ReferentialIntegrityError` at the repository boundary.
-- ⬜ **M6 — Core use cases**: `CreateProfileUseCase`,
-  `AddResumeUseCase`, `SelectResumeUseCase`,
-  `SaveCoverLetterTemplateUseCase`, `RecordApplicationUseCase`, each with
-  unit tests using fake repositories.
+- ✅ **M6 — Core use cases**: `CreateProfileUseCase`, `AddResumeUseCase`,
+  `SaveCoverLetterTemplateUseCase`, `SaveAnswerUseCase`,
+  `StartApplicationUseCase`, `SubmitApplicationUseCase` -- the last two
+  replacing the original placeholder `RecordApplicationUseCase` once
+  ADR-0002 worked out the Draft→Submit lifecycle in detail. Each is
+  unit-tested with in-memory fake repositories (no database), the payoff
+  of Milestone 5's Protocol-based interfaces. Business-rule violations
+  (not-found lookups, submission readiness) raise a new
+  `application/exceptions.py` hierarchy, kept distinct from
+  `domain/exceptions.py`'s invariant violations per ADR-0002.
 - ⬜ **M7 — CLI (Phase 1 front door)**: minimal CLI commands to exercise
   the above use cases end-to-end (create profile, add resume, list
   applications).
