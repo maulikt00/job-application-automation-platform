@@ -60,9 +60,14 @@ simple CLI, with no browser or AI dependency yet.
   (not-found lookups, submission readiness) raise a new
   `application/exceptions.py` hierarchy, kept distinct from
   `domain/exceptions.py`'s invariant violations per ADR-0002.
-- ⬜ **M7 — CLI (Phase 1 front door)**: minimal CLI commands to exercise
-  the above use cases end-to-end (create profile, add resume, list
-  applications).
+- ✅ **M7 — CLI (Phase 1 front door)**: `argparse`-based CLI covering
+  `profile create`, `resume add`, `application start`/`attach-resume`/
+  `submit`/`list`, wired through a composition root in `main.py`
+  (ADR-0007). `scripts/seed_job_posting.py` fills the job-posting-creation
+  gap deliberately left for Phase 4's connectors. Includes
+  `AttachResumeToApplicationUseCase`, added to resolve ADR-0006's
+  deferred `SelectResumeUseCase` decision -- a real gap caught by this
+  milestone's own end-to-end smoke test, not by writing code.
 
 ## Phase 2 — Browser Automation
 

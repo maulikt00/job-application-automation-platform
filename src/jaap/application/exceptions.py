@@ -15,7 +15,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from jaap.domain.models import ApplicationId, JobPostingId, ProfileId
+    from jaap.domain.models import ApplicationId, JobPostingId, ProfileId, ResumeId
 
 
 class UseCaseError(Exception):
@@ -44,6 +44,15 @@ class JobPostingNotFoundError(UseCaseError):
     def __init__(self, job_posting_id: JobPostingId) -> None:
         self.job_posting_id = job_posting_id
         super().__init__(f"No JobPosting found with id {job_posting_id}.")
+
+
+class ResumeNotFoundError(UseCaseError):
+    """Raised when a use case is given a ResumeId that doesn't resolve
+    to an existing Resume."""
+
+    def __init__(self, resume_id: ResumeId) -> None:
+        self.resume_id = resume_id
+        super().__init__(f"No Resume found with id {resume_id}.")
 
 
 class ApplicationNotFoundError(UseCaseError):

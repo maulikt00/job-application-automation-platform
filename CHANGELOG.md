@@ -9,6 +9,22 @@ which it will move to [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- `docs/adr/0007-cli-composition-root-and-error-handling.md`: the design
+  decisions behind Milestone 7 (argparse choice, UUID validation at the
+  CLI boundary, centralized exception translation, the composition root,
+  and `create_all()`'s explicitly single-user/development scope).
+- `presentation/cli/main.py`: the CLI composition root and entry point
+  (`python -m jaap.presentation.cli.main ...`), plus commands for
+  `profile create`, `resume add`, `application start`/`attach-resume`/
+  `submit`/`list` in `presentation/cli/commands/`.
+- `AttachResumeToApplicationUseCase`: resolves ADR-0006's deferred
+  `SelectResumeUseCase` decision -- discovered as a real gap during
+  Milestone 7's own end-to-end smoke test (`StartApplicationUseCase`
+  created Drafts with no way to ever attach a resume before submission).
+  Adds `ResumeNotFoundError` to `application/exceptions.py`.
+- `scripts/seed_job_posting.py`: a standalone script for creating
+  `JobPosting` rows directly, since job posting creation is deliberately
+  left to Phase 4's connectors rather than a CLI command.
 - `docs/adr/0006-core-use-cases-and-exception-placement.md`: the design
   decisions behind Milestone 6 (the finalized use case set replacing the
   original `RecordApplicationUseCase` placeholder, exception placement,
