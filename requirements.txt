@@ -9,8 +9,19 @@ pydantic-settings>=2.3,<3.0
 SQLAlchemy>=2.0,<3.0
 python-dotenv>=1.0,<2.0
 
-# --- Phase 2: Browser automation (added when Phase 2 begins) ---
-# playwright>=1.45,<2.0
+# --- Phase 2: Browser automation ---
+# NOTE: `pip install` alone is NOT sufficient -- the actual browser
+# binary is a separate, non-PyPI download. After installing this
+# package, run once: `python -m playwright install chromium`
+#
+# Pinned tightly (not a range) after a clean-venv check caught a real
+# regression: playwright 1.62.0 raises "using Playwright Sync API inside
+# the asyncio loop" when PlaywrightBrowserEngine.launch() calls
+# sync_playwright().start() in this project's test environment, even
+# though no async test plugin is installed and 1.56.0 does not exhibit
+# this. Revisit this pin if the underlying cause is later understood
+# and a newer version is verified not to reintroduce it.
+playwright==1.56.0
 
 # --- Phase 3: AI providers (added when Phase 3 begins) ---
 # anthropic>=0.30,<1.0
