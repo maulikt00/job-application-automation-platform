@@ -87,3 +87,19 @@ def test_can_be_constructed_directly_with_python_attribute_names(
     settings = Settings(_env_file=None, log_level="WARNING")
 
     assert settings.log_level == "WARNING"
+
+
+def test_headless_defaults_to_true(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.delenv("JAAP_HEADLESS", raising=False)
+
+    settings = Settings(_env_file=None)
+
+    assert settings.headless is True
+
+
+def test_headless_can_be_disabled_via_env_var(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("JAAP_HEADLESS", "false")
+
+    settings = Settings(_env_file=None)
+
+    assert settings.headless is False
