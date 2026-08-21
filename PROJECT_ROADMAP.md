@@ -74,8 +74,12 @@ simple CLI, with no browser or AI dependency yet.
 **Goal:** detect and fill job application forms in a real browser via
 Playwright, always stopping short of final submission for human review.
 
-- ⬜ **M8 — Playwright engine wrapper**: `BrowserAutomationEngine`
-  interface + Playwright-backed implementation (launch, navigate, close).
+- ✅ **M8 — Playwright engine wrapper**: `BrowserAutomationEngine`
+  Protocol interface + Playwright-backed implementation (launch,
+  navigate, close, screenshot). Sync API, not async (ADR-0008); tested
+  against a real headless Chromium instance, not mocks. Includes a
+  tight version pin (`playwright==1.56.0`) after a clean-venv check
+  caught a real asyncio-loop-detection regression in a newer release.
 - ⬜ **M9 — Form field detector**: inspect a loaded page and produce a
   structured list of detected fields (name, type, label guess).
 - ⬜ **M10 — Autofill engine**: given structured profile/resume/answer

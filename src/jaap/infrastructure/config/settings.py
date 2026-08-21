@@ -39,6 +39,9 @@ class Settings(BaseSettings):
         anthropic_api_key: API key for Claude (Phase 3). Optional here
             since it isn't needed until the ClaudeProvider is implemented.
         ollama_host: Base URL for a local Ollama server (Phase 3).
+        headless: Whether Playwright launches Chromium headless (Phase 2).
+            Defaults to True; set to False locally to watch the browser
+            interactively while developing/debugging.
     """
 
     model_config = SettingsConfigDict(
@@ -60,6 +63,7 @@ class Settings(BaseSettings):
     ollama_host: str = Field(
         default="http://localhost:11434", validation_alias="OLLAMA_HOST"
     )
+    headless: bool = Field(default=True, validation_alias="JAAP_HEADLESS")
 
     @field_validator("log_level")
     @classmethod

@@ -9,6 +9,16 @@ which it will move to [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- `docs/adr/0008-browser-automation-engine.md`: the design decisions
+  behind Milestone 8 (Protocol interface, sync vs async Playwright API,
+  never exposing raw Playwright objects, deferred exception translation,
+  and the version-pin discovery below).
+- `BrowserAutomationEngine` Protocol interface
+  (`application/interfaces/browser_engine.py`) and its Playwright-backed
+  implementation (`infrastructure/browser/playwright_engine.py`):
+  `launch()`, `navigate()`, `screenshot()`, `close()`, context-manager
+  support. Tested against a real headless Chromium instance, not mocks.
+- `Settings.headless` (env var `JAAP_HEADLESS`, default `true`).
 - `docs/adr/0007-cli-composition-root-and-error-handling.md`: the design
   decisions behind Milestone 7 (argparse choice, UUID validation at the
   CLI boundary, centralized exception translation, the composition root,
@@ -136,6 +146,13 @@ which it will move to [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- `requirements.txt`: `playwright` pinned tightly to `==1.56.0`, not a
+  version range. A clean-venv check caught `1.62.0` raising "using
+  Playwright Sync API inside the asyncio loop" the moment
+  `PlaywrightBrowserEngine.launch()` ran, even with no async test
+  plugin installed anywhere. `1.56.0` does not exhibit this; root cause
+  not fully diagnosed, so pinning tightly rather than routing around it.
+  See ADR-0008.
 - `resume_mapper.py`: `Resume.file_path` is now stored via `.as_posix()`
   instead of `str()`. `str(Path(...))` renders using the OS's native
   separator (backslashes on Windows), so a path saved from a Windows
