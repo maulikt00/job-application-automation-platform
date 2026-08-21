@@ -53,14 +53,17 @@ See [PROJECT_ROADMAP.md](PROJECT_ROADMAP.md) for the milestone-level breakdown.
 
 ## Getting Started
 
-> There's no CLI yet (that's Milestone 7) -- but the domain models,
-> configuration, logging, and full SQLite persistence layer are built,
-> tested, and usable as a library today.
+> Phase 1 (domain models through the CLI) is complete. Phase 2 (browser
+> automation) is in progress.
 
 ```bash
 python -m venv .venv
 source .venv/bin/activate      # or .venv\Scripts\activate on Windows
 pip install -r requirements.txt -r requirements-dev.txt
+
+# Browser automation (Phase 2) needs a separate, non-PyPI binary download --
+# `pip install` alone does not provide it:
+python -m playwright install chromium
 ```
 
 ## Running Tests
@@ -69,8 +72,9 @@ pip install -r requirements.txt -r requirements-dev.txt
 pytest tests/unit -v
 ```
 
-115 tests, covering domain models, configuration/logging, the database
-layer, and all six repositories.
+158 tests, covering domain models, configuration/logging, the database
+layer, all six repositories, core use cases, the CLI, and browser
+automation (run against a real headless Chromium instance, not mocks).
 
 ## Tech Stack
 
