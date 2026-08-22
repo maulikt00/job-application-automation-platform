@@ -80,8 +80,15 @@ Playwright, always stopping short of final submission for human review.
   against a real headless Chromium instance, not mocks. Includes a
   tight version pin (`playwright==1.56.0`) after a clean-venv check
   caught a real asyncio-loop-detection regression in a newer release.
-- ⬜ **M9 — Form field detector**: inspect a loaded page and produce a
-  structured list of detected fields (name, type, label guess).
+- ✅ **M9 — Form field detector**: `FormFieldDetector` Protocol +
+  `PlaywrightFormFieldDetector`, composed with `BrowserAutomationEngine`
+  via constructor injection rather than a new engine method (a
+  mid-design correction to ADR-0008's original plan -- see ADR-0009).
+  Uses one new generic engine primitive, `evaluate()`, to run JS against
+  the live rendered DOM (catches JS-rendered SPA content a static parser
+  would miss). Tested against a real constructed HTML page in real
+  Chromium, covering every field type, both exclusion categories, and
+  all label-priority levels.
 - ⬜ **M10 — Autofill engine**: given structured profile/resume/answer
   data and detected fields, fill matching fields; unmatched fields
   surfaced to the user rather than guessed.

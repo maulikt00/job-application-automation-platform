@@ -9,6 +9,23 @@ which it will move to [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- `docs/adr/0009-form-field-detector.md`: the design decisions behind
+  Milestone 9, including a mid-design correction to ADR-0008's original
+  plan (form detection composed separately, not added as a new
+  `BrowserAutomationEngine` method) and precise findings about what
+  `evaluate()`'s JSON round-trip guard actually catches.
+- `BrowserAutomationEngine.evaluate(script) -> Any`: the one new generic
+  primitive added this milestone, running JavaScript against the live
+  rendered page. Enforces a JSON-compatible result
+  (`allow_nan=False` specifically, since Python's `json.dumps()` permits
+  `NaN`/`Infinity` by default).
+- `FormFieldDetector` Protocol interface + `DetectedField` model
+  (`application/interfaces/form_field_detector.py`) and
+  `PlaywrightFormFieldDetector` (`infrastructure/browser/form_field_detector.py`),
+  composed with `BrowserAutomationEngine` via constructor injection.
+  Tested against a real constructed HTML page in real Chromium, covering
+  every field type, exclusions (hidden, disabled, button-like inputs),
+  and all label-priority levels (label-for, aria-label, placeholder, none).
 - `docs/adr/0008-browser-automation-engine.md`: the design decisions
   behind Milestone 8 (Protocol interface, sync vs async Playwright API,
   never exposing raw Playwright objects, deferred exception translation,
