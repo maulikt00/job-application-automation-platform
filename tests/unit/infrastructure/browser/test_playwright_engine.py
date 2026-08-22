@@ -106,3 +106,34 @@ def test_close_is_called_even_when_the_with_block_raises(settings: Settings) -> 
     # exception leaked from __exit__ itself.
     with pytest.raises(RuntimeError, match="launch"):
         engine_ref[0].navigate(_TEST_PAGE)
+
+
+def test_evaluate_returns_simple_values(settings: Settings) -> None:
+    with PlaywrightBrowserEngine(settings) as engine:
+        engine.navigate(_TEST_PAGE)
+        assert engine.evaluate("1 + 1") == 2
+        assert engine.evaluate("document.getElementById('heading').textContent") == "Test Page"
+
+
+def test_evaluate_returns_structured_json_compatible_values(settings: Settings) -> None:
+    with PlaywrightBrowserEngine(settings) as engine:
+        engine.navigate(_TEST_PAGE)
+        result = engine.evaluate("({a: 1, b: [1, 2, 3], c: null})")
+        assert result == {"a": 1, "b": [1, 2, 3], "c": None}
+
+
+def test_evaluate_rejects_nan(settings: Settings) -> None:
+    # Regression test: Python's json.dumps() allows NaN by default
+    # (non-standard JSON), which would silently defeat this guard
+    # without allow_nan=False -- see playwright_engine.py's evaluate().
+    with PlaywrightBrowserEngine(settings) as engine:
+        engine.navigate(_TEST_PAGE)
+        with pytest.raises(ValueError, match="JSON-compatible"):
+            engine.evaluate("NaN")
+
+
+def test_evaluate_before_launch_raises_runtime_error(settings: Settings) -> None:
+    engine = PlaywrightBrowserEngine(settings)
+
+    with pytest.raises(RuntimeError, match="launch"):
+        engine.evaluate("1 + 1")
