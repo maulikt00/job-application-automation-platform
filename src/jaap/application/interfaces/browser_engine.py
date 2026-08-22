@@ -9,11 +9,24 @@ Deliberately does NOT expose raw Playwright objects (Page, ElementHandle)
 to callers. This is the decision that actually makes the abstraction
 swappable rather than a Playwright-shaped wrapper in name only -- if
 navigate() returned a Playwright Page directly, every future caller
-(Milestone 9's form detector, Milestone 10's autofill engine) would
+(Milestone 9's FormFieldDetector, Milestone 10's autofill engine) would
 depend on Playwright's API directly, not on this interface. The
 interface stays at the level ARCHITECTURE.md already describes: actions
-and, starting in Milestone 9, structured data -- never raw library
-objects.
+and structured data -- never raw library objects.
+
+`evaluate()` (added Milestone 9) is the interface's one generic
+extension point for extracting structured data from a live, rendered
+page. It is deliberately NOT a forms-specific method -- form-field
+detection logic (what counts as a "field", label-guessing, which types
+to exclude) lives entirely in FormFieldDetector
+(application/interfaces/form_field_detector.py), composed with this
+engine via constructor injection, not added here. Keeping this engine
+generic (it still knows nothing about job applications specifically)
+was a deliberate correction made while designing Milestone 9 -- an
+earlier draft of this ADR-adjacent plan had sketched form detection as
+a new engine method, which would have coupled a supposedly generic
+automation toolkit to forms-specific domain knowledge. See
+docs/adr/0009-form-field-detector.md.
 
 No dedicated exception translation yet, unlike ReferentialIntegrityError
 in domain/exceptions.py (Milestone 5): there is no use-case-level
@@ -26,7 +39,7 @@ ADR-0006 already established for deferring DTOs.
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Protocol, Self
+from typing import Any, Protocol, Self
 
 
 class BrowserAutomationEngine(Protocol):
@@ -36,6 +49,26 @@ class BrowserAutomationEngine(Protocol):
 
     def navigate(self, url: str) -> None:
         """Navigate the current page to `url`."""
+        ...
+
+    def evaluate(self, script: str) -> Any:
+        """Run JavaScript `script` against the current, live, rendered page
+        and return its result.
+
+        The result MUST be JSON-compatible (str, int, float, bool, None,
+        list, or dict). Implementations enforce this with a JSON
+        round-trip and raise ValueError if it fails -- verified against a
+        real browser: Playwright's own serialization already converts
+        genuinely non-serializable JS values (DOM nodes, functions) into
+        safe string placeholders before they ever reach Python, so this
+        check is a defensive backstop for edge cases like NaN/Infinity
+        (which Python's json module permits by default, unlike standard
+        JSON) rather than the primary defense against a live DOM handle
+        leaking out. Running against the live DOM (not a static HTML
+        snapshot) matters because real application forms are often
+        JS-rendered SPAs -- a static parser would miss content that only
+        exists after client-side rendering.
+        """
         ...
 
     def screenshot(self, path: Path) -> None:
