@@ -16,9 +16,10 @@ See requirements.txt's note on this.
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
 from types import TracebackType
-from typing import Self
+from typing import Any, Self
 
 from playwright.sync_api import Browser, Page, Playwright, sync_playwright
 
@@ -47,6 +48,26 @@ class PlaywrightBrowserEngine:
 
     def navigate(self, url: str) -> None:
         self._require_page().goto(url)
+
+    def evaluate(self, script: str) -> Any:
+        result = self._require_page().evaluate(script)
+        try:
+            # allow_nan=False is deliberate: Python's json.dumps() permits
+            # NaN/Infinity by default (non-standard JSON), which would
+            # silently defeat this check for a script that evaluates to
+            # NaN. Note that Playwright's own serialization already
+            # converts genuinely non-serializable JS values (DOM nodes,
+            # functions) into safe placeholders before this code ever
+            # sees them -- this round-trip is a defensive backstop for
+            # edge cases like NaN/Infinity, not the primary defense.
+            json.dumps(result, allow_nan=False)
+        except (TypeError, ValueError) as exc:
+            raise ValueError(
+                "evaluate() must only return JSON-compatible data (str, int, "
+                "float, bool, None, list, or dict); the script's result "
+                "failed to serialize."
+            ) from exc
+        return result
 
     def screenshot(self, path: Path) -> None:
         path.parent.mkdir(parents=True, exist_ok=True)
