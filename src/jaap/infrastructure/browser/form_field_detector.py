@@ -34,6 +34,12 @@ _DETECTION_SCRIPT = """
     return null;
   }
 
+  function selectorFor(el) {
+    if (el.id) return `#${CSS.escape(el.id)}`;
+    if (el.name) return `[name="${CSS.escape(el.name)}"]`;
+    return null;
+  }
+
   function fieldType(el) {
     const tag = el.tagName.toLowerCase();
     if (tag === "select") return el.multiple ? "select-multiple" : "select-one";
@@ -65,6 +71,7 @@ _DETECTION_SCRIPT = """
       field_type: fieldType(el),
       name: el.name || null,
       element_id: el.id || null,
+      selector: selectorFor(el),
       label: labelFor(el),
       required: Boolean(el.required),
       current_value: currentValue(el),
