@@ -132,3 +132,51 @@ class FakeApplicationRepository:
 
     def list_by_profile(self, profile_id: ProfileId) -> list[Application]:
         return [a for a in self._applications.values() if a.profile_id == profile_id]
+
+
+class FakeBrowserEngine:
+    """Fake BrowserAutomationEngine recording every fill/check/select_option
+    call it receives, so AutofillApplicationUseCase's dispatch logic
+    (fill() vs check() vs select_option()) can be asserted on directly
+    without a real browser. Only implements the methods
+    AutofillApplicationUseCase actually calls -- launch/navigate/etc.
+    aren't needed for these tests."""
+
+    def __init__(self) -> None:
+        self.filled: list[tuple[str, str]] = []
+        self.checked: list[tuple[str, bool]] = []
+        self.selected: list[tuple[str, str]] = []
+
+    def fill(self, selector: str, value: str) -> None:
+        self.filled.append((selector, value))
+
+    def check(self, selector: str, checked: bool) -> None:
+        self.checked.append((selector, checked))
+
+    def select_option(self, selector: str, value: str) -> None:
+        self.selected.append((selector, value))
+
+
+class FakeFormFieldDetector:
+    """Fake FormFieldDetector returning a fixed, pre-configured list of
+    DetectedFields, so use case tests don't need a real page to detect
+    fields from."""
+
+    def __init__(self, fields: list) -> None:
+        self._fields = fields
+
+    def detect_fields(self) -> list:
+        return self._fields
+
+
+class FakeFieldMatcher:
+    """Fake FieldMatcher returning a fixed, pre-configured FieldMatchResult,
+    so use case tests can assert on dispatch behavior (given a known
+    match result, does the use case call the right engine method)
+    independent of any real matching logic."""
+
+    def __init__(self, result) -> None:
+        self._result = result
+
+    def match(self, fields, profile, answers):
+        return self._result

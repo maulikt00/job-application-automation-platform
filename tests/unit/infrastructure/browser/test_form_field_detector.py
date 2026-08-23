@@ -135,3 +135,23 @@ def test_input_field_type_reflects_the_type_attribute(detected_fields) -> None:
     assert detected_fields["email"].field_type == "email"
     assert detected_fields["placeholder_only"].field_type == "tel"
     assert detected_fields["full_name"].field_type == "text"
+
+
+def test_selector_prefers_id_over_name(detected_fields) -> None:
+    assert detected_fields["full_name"].selector == "#full_name"
+
+
+def test_selector_falls_back_to_name_attribute_when_no_id() -> None:
+    settings = Settings(_env_file=None)
+    with PlaywrightBrowserEngine(settings) as engine:
+        engine.navigate('data:text/html,<html><body><input name="only_name" type="text"></body></html>')
+        fields = PlaywrightFormFieldDetector(engine).detect_fields()
+    assert fields[0].selector == '[name="only_name"]'
+
+
+def test_selector_is_none_when_neither_id_nor_name_is_present() -> None:
+    settings = Settings(_env_file=None)
+    with PlaywrightBrowserEngine(settings) as engine:
+        engine.navigate('data:text/html,<html><body><input type="text"></body></html>')
+        fields = PlaywrightFormFieldDetector(engine).detect_fields()
+    assert fields[0].selector is None

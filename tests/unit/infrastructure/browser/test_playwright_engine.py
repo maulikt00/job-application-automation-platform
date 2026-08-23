@@ -17,6 +17,7 @@ from pathlib import Path
 
 import pytest
 
+from jaap.domain.exceptions import BrowserAutomationError
 from jaap.infrastructure.browser.playwright_engine import PlaywrightBrowserEngine
 from jaap.infrastructure.config.settings import Settings
 
@@ -137,3 +138,97 @@ def test_evaluate_before_launch_raises_runtime_error(settings: Settings) -> None
 
     with pytest.raises(RuntimeError, match="launch"):
         engine.evaluate("1 + 1")
+
+
+_FORM_PAGE = (
+    'data:text/html,<html><body>'
+    '<input id="t" type="text">'
+    '<input id="c" type="checkbox">'
+    '<select id="s"><option value="a">A</option><option value="b">B</option></select>'
+    '</body></html>'
+)
+
+
+def test_fill_sets_a_text_fields_value(settings: Settings) -> None:
+    with PlaywrightBrowserEngine(settings) as engine:
+        engine.navigate(_FORM_PAGE)
+        engine.fill("#t", "hello world")
+        assert engine.evaluate("document.getElementById('t').value") == "hello world"
+
+
+def test_check_sets_a_checkbox_checked(settings: Settings) -> None:
+    with PlaywrightBrowserEngine(settings) as engine:
+        engine.navigate(_FORM_PAGE)
+        engine.check("#c", True)
+        assert engine.evaluate("document.getElementById('c').checked") is True
+
+
+def test_check_false_unchecks_a_checkbox(settings: Settings) -> None:
+    with PlaywrightBrowserEngine(settings) as engine:
+        engine.navigate(_FORM_PAGE)
+        engine.check("#c", True)
+        engine.check("#c", False)
+        assert engine.evaluate("document.getElementById('c').checked") is False
+
+
+def test_select_option_sets_the_selected_value(settings: Settings) -> None:
+    with PlaywrightBrowserEngine(settings) as engine:
+        engine.navigate(_FORM_PAGE)
+        engine.select_option("#s", "b")
+        assert engine.evaluate("document.getElementById('s').value") == "b"
+
+
+def test_fill_before_launch_raises_runtime_error(settings: Settings) -> None:
+    engine = PlaywrightBrowserEngine(settings)
+
+    with pytest.raises(RuntimeError, match="launch"):
+        engine.fill("#t", "x")
+
+
+def test_check_before_launch_raises_runtime_error(settings: Settings) -> None:
+    engine = PlaywrightBrowserEngine(settings)
+
+    with pytest.raises(RuntimeError, match="launch"):
+        engine.check("#c", True)
+
+
+def test_select_option_before_launch_raises_runtime_error(settings: Settings) -> None:
+    engine = PlaywrightBrowserEngine(settings)
+
+    with pytest.raises(RuntimeError, match="launch"):
+        engine.select_option("#s", "a")
+
+
+def test_evaluate_with_invalid_javascript_raises_browser_automation_error(
+    settings: Settings,
+) -> None:
+    # Fast, reliable trigger for a genuine Playwright error: invalid JS
+    # syntax fails immediately, unlike a missing-selector wait (30s
+    # default timeout) -- deliberately avoided here to keep this test fast.
+    with PlaywrightBrowserEngine(settings) as engine:
+        engine.navigate(_TEST_PAGE)
+        with pytest.raises(BrowserAutomationError) as exc_info:
+            engine.evaluate("this is not valid javascript !!!")
+        assert exc_info.value.__cause__ is not None
+
+
+def test_check_on_a_non_checkable_element_raises_browser_automation_error(
+    settings: Settings,
+) -> None:
+    # Fast, reliable trigger: check() on a text input is immediately
+    # invalid (not a "waiting for element" timeout).
+    with PlaywrightBrowserEngine(settings) as engine:
+        engine.navigate(_FORM_PAGE)
+        with pytest.raises(BrowserAutomationError) as exc_info:
+            engine.check("#t", True)
+        assert exc_info.value.__cause__ is not None
+
+
+def test_select_option_on_a_non_select_element_raises_browser_automation_error(
+    settings: Settings,
+) -> None:
+    with PlaywrightBrowserEngine(settings) as engine:
+        engine.navigate(_FORM_PAGE)
+        with pytest.raises(BrowserAutomationError) as exc_info:
+            engine.select_option("#t", "a")
+        assert exc_info.value.__cause__ is not None
