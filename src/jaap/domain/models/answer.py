@@ -8,14 +8,11 @@ a field embedded directly in Application.
 
 from __future__ import annotations
 
-import re
-
 from pydantic import ConfigDict, Field, field_validator
 
 from jaap.domain.models.entity import Entity
 from jaap.domain.models.ids import AnswerId, ProfileId
-
-_SLUG_PATTERN = re.compile(r"[^a-z0-9]+")
+from jaap.utils.slugify import slugify
 
 
 class Answer(Entity):
@@ -42,7 +39,7 @@ class Answer(Entity):
     @field_validator("question_key")
     @classmethod
     def _normalize_question_key(cls, value: str) -> str:
-        slug = _SLUG_PATTERN.sub("-", value.strip().lower()).strip("-")
+        slug = slugify(value)
         if not slug:
             raise ValueError("question_key must contain at least one alphanumeric character")
         return slug

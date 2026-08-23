@@ -34,6 +34,12 @@ class DetectedField(BaseModel):
             "select-multiple". For "textarea", literally "textarea".
         name: The element's `name` attribute, if set.
         element_id: The element's `id` attribute, if set.
+        selector: A CSS selector that reliably targets this element for
+            filling -- `#<id>` if the element has an id (preferred, since
+            ids are meant to be unique), else `[name="..."]` if it has a
+            name, else None if neither exists. A field with `selector is
+            None` is NEVER matched/filled by ExactFieldMatcher (Milestone
+            10) -- there would be no reliable way to act on it safely.
         label: A best-effort label guess, in priority order: an
             associated `<label for="...">` element's text, then
             `aria-label`, then `placeholder`. None if none of these exist.
@@ -49,6 +55,7 @@ class DetectedField(BaseModel):
     field_type: str
     name: str | None = None
     element_id: str | None = None
+    selector: str | None = None
     label: str | None = None
     required: bool = False
     current_value: str | None = None

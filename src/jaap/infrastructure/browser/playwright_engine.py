@@ -12,6 +12,15 @@ Requires the actual browser binary, which is a SEPARATE download from
 the `playwright` pip package: after `pip install playwright`, run once:
     python -m playwright install chromium
 See requirements.txt's note on this.
+
+Every operational method translates Playwright's own exceptions into
+`jaap.domain.exceptions.BrowserAutomationError`, preserving the original
+via exception chaining (`raise ... from exc`) -- see
+docs/adr/0010-autofill-engine.md for why this was deferred until now.
+The `RuntimeError` raised by `_require_page()` is a separate, ordinary
+programmer-error guard (calling an operation before launch()/after
+close()), not part of that translation -- it was never a Playwright
+exception to begin with.
 """
 
 from __future__ import annotations
@@ -22,7 +31,9 @@ from types import TracebackType
 from typing import Any, Self
 
 from playwright.sync_api import Browser, Page, Playwright, sync_playwright
+from playwright.sync_api import Error as PlaywrightError
 
+from jaap.domain.exceptions import BrowserAutomationError
 from jaap.infrastructure.config.settings import Settings
 
 
@@ -31,8 +42,8 @@ class PlaywrightBrowserEngine:
 
     `headless` is read from Settings (see settings.py), not hardcoded --
     lets a developer flip JAAP_HEADLESS=false locally to watch the
-    browser interactively while debugging Milestone 9/10's form
-    detection and autofill logic.
+    browser interactively while debugging form detection and autofill
+    logic.
     """
 
     def __init__(self, settings: Settings) -> None:
@@ -42,15 +53,24 @@ class PlaywrightBrowserEngine:
         self._page: Page | None = None
 
     def launch(self) -> None:
-        self._playwright = sync_playwright().start()
-        self._browser = self._playwright.chromium.launch(headless=self._settings.headless)
-        self._page = self._browser.new_page()
+        try:
+            self._playwright = sync_playwright().start()
+            self._browser = self._playwright.chromium.launch(headless=self._settings.headless)
+            self._page = self._browser.new_page()
+        except PlaywrightError as exc:
+            raise BrowserAutomationError(f"Failed to launch the browser: {exc}") from exc
 
     def navigate(self, url: str) -> None:
-        self._require_page().goto(url)
+        try:
+            self._require_page().goto(url)
+        except PlaywrightError as exc:
+            raise BrowserAutomationError(f"Failed to navigate to {url!r}: {exc}") from exc
 
     def evaluate(self, script: str) -> Any:
-        result = self._require_page().evaluate(script)
+        try:
+            result = self._require_page().evaluate(script)
+        except PlaywrightError as exc:
+            raise BrowserAutomationError(f"Failed to evaluate script: {exc}") from exc
         try:
             # allow_nan=False is deliberate: Python's json.dumps() permits
             # NaN/Infinity by default (non-standard JSON), which would
@@ -69,18 +89,50 @@ class PlaywrightBrowserEngine:
             ) from exc
         return result
 
+    def fill(self, selector: str, value: str) -> None:
+        try:
+            self._require_page().fill(selector, value)
+        except PlaywrightError as exc:
+            raise BrowserAutomationError(f"Failed to fill {selector!r}: {exc}") from exc
+
+    def check(self, selector: str, checked: bool) -> None:
+        try:
+            page = self._require_page()
+            if checked:
+                page.check(selector)
+            else:
+                page.uncheck(selector)
+        except PlaywrightError as exc:
+            raise BrowserAutomationError(
+                f"Failed to set checked={checked} on {selector!r}: {exc}"
+            ) from exc
+
+    def select_option(self, selector: str, value: str) -> None:
+        try:
+            self._require_page().select_option(selector, value)
+        except PlaywrightError as exc:
+            raise BrowserAutomationError(
+                f"Failed to select {value!r} on {selector!r}: {exc}"
+            ) from exc
+
     def screenshot(self, path: Path) -> None:
-        path.parent.mkdir(parents=True, exist_ok=True)
-        self._require_page().screenshot(path=str(path))
+        try:
+            path.parent.mkdir(parents=True, exist_ok=True)
+            self._require_page().screenshot(path=str(path))
+        except PlaywrightError as exc:
+            raise BrowserAutomationError(f"Failed to take screenshot: {exc}") from exc
 
     def close(self) -> None:
-        if self._browser is not None:
-            self._browser.close()
-            self._browser = None
-        if self._playwright is not None:
-            self._playwright.stop()
-            self._playwright = None
-        self._page = None
+        try:
+            if self._browser is not None:
+                self._browser.close()
+                self._browser = None
+            if self._playwright is not None:
+                self._playwright.stop()
+                self._playwright = None
+            self._page = None
+        except PlaywrightError as exc:
+            raise BrowserAutomationError(f"Failed to close the browser: {exc}") from exc
 
     def _require_page(self) -> Page:
         if self._page is None:

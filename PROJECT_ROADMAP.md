@@ -89,9 +89,15 @@ Playwright, always stopping short of final submission for human review.
   would miss). Tested against a real constructed HTML page in real
   Chromium, covering every field type, both exclusion categories, and
   all label-priority levels.
-- ⬜ **M10 — Autofill engine**: given structured profile/resume/answer
-  data and detected fields, fill matching fields; unmatched fields
-  surfaced to the user rather than guessed.
+- ✅ **M10 — Autofill engine**: `FieldMatcher` Protocol +
+  `ExactFieldMatcher` (conservative/exact matching only, no fuzzy
+  scoring), `AutofillApplicationUseCase` orchestrating detection →
+  matching → filling. `BrowserAutomationEngine` gained `fill()`/
+  `check()`/`select_option()`; Playwright's own exceptions are now
+  translated into `BrowserAutomationError` (ADR-0010, resolving the
+  deferral from ADR-0008/0009). `DetectedField` gained `selector`;
+  fields without one are never matched. Verified end-to-end against a
+  real page, reading back actual DOM state after autofill.
 - ⬜ **M11 — Resume upload handling**: attach the selected resume file to
   a detected file-upload field.
 - ⬜ **M12 — Human review gate**: an explicit "review and confirm" step
