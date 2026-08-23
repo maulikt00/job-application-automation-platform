@@ -23,17 +23,24 @@ to exclude) lives entirely in FormFieldDetector
 engine via constructor injection, not added here. Keeping this engine
 generic (it still knows nothing about job applications specifically)
 was a deliberate correction made while designing Milestone 9 -- an
-earlier draft of this ADR-adjacent plan had sketched form detection as
-a new engine method, which would have coupled a supposedly generic
-automation toolkit to forms-specific domain knowledge. See
-docs/adr/0009-form-field-detector.md.
+earlier draft had sketched form detection as a new engine method, which
+would have coupled a supposedly generic automation toolkit to
+forms-specific domain knowledge. See docs/adr/0009-form-field-detector.md.
 
-No dedicated exception translation yet, unlike ReferentialIntegrityError
-in domain/exceptions.py (Milestone 5): there is no use-case-level
-consumer of this interface yet to design a translation against --
-that's Milestone 10's autofill engine. Revisit then, following the same
-"don't build an abstraction without a concrete consumer" discipline
-ADR-0006 already established for deferring DTOs.
+`fill()`, `check()`, and `select_option()` (added Milestone 10) are the
+three action primitives an autofill engine needs -- still generic (any
+web automation needs "fill a field" or "check a box," not just job
+applications), following the exact same reasoning as `evaluate()`.
+
+Exception translation (deferred in ADR-0008/0009 until there was a
+concrete consumer): every operational method here can raise
+`jaap.domain.exceptions.BrowserAutomationError` if the underlying
+browser operation fails. Implementations preserve the original
+exception via chaining (`raise ... from exc`) -- see
+docs/adr/0010-autofill-engine.md. The `RuntimeError` raised by calling
+an operation before `launch()`/after `close()` is a separate, ordinary
+programmer-error guard, not part of this translation -- it was never a
+Playwright-raised error to begin with.
 """
 
 from __future__ import annotations
@@ -44,7 +51,7 @@ from typing import Any, Protocol, Self
 
 class BrowserAutomationEngine(Protocol):
     def launch(self) -> None:
-        """Start the browser. Must be called before navigate()/screenshot()."""
+        """Start the browser. Must be called before other operations."""
         ...
 
     def navigate(self, url: str) -> None:
@@ -69,6 +76,20 @@ class BrowserAutomationEngine(Protocol):
         JS-rendered SPAs -- a static parser would miss content that only
         exists after client-side rendering.
         """
+        ...
+
+    def fill(self, selector: str, value: str) -> None:
+        """Fill a text-like field (text, email, tel, textarea, etc.)
+        matching `selector` with `value`."""
+        ...
+
+    def check(self, selector: str, checked: bool) -> None:
+        """Set a checkbox or radio button matching `selector` to `checked`."""
+        ...
+
+    def select_option(self, selector: str, value: str) -> None:
+        """Select the option with the given `value` in a <select> element
+        matching `selector`."""
         ...
 
     def screenshot(self, path: Path) -> None:

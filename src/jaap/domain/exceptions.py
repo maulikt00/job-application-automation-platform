@@ -63,3 +63,18 @@ class ReferentialIntegrityError(DomainError):
     vocabulary -- it never needs to know what database library, if any,
     is underneath (see ARCHITECTURE.md's dependency rule).
     """
+
+
+class BrowserAutomationError(DomainError):
+    """Raised when a browser automation operation fails.
+
+    Same reasoning as ReferentialIntegrityError, applied to
+    BrowserAutomationEngine: implementations catch the underlying
+    infrastructure exception (e.g. Playwright's own error types) and
+    re-raise this instead, via exception chaining (`raise ... from exc`)
+    so the original cause is preserved, not lost. This was deliberately
+    deferred in ADR-0008/0009 until there was a real use-case-level
+    consumer to design the translation against -- Milestone 10's
+    AutofillApplicationUseCase is that consumer.
+    """
+
