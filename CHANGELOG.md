@@ -9,6 +9,31 @@ which it will move to [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- `docs/adr/0010-autofill-engine.md`: the design decisions behind
+  Milestone 10, including conservative/exact-only matching, the
+  `application/services/` package rationale, and the finding that
+  Playwright's default "element not found" timeout (30s) is too slow for
+  tests -- fast, reliable failure triggers used instead.
+- `BrowserAutomationEngine.fill()`, `.check()`, `.select_option()`: the
+  three generic action primitives an autofill engine needs.
+- `BrowserAutomationError` (`domain/exceptions.py`): every operational
+  `PlaywrightBrowserEngine` method now translates Playwright's own
+  exceptions into this, via exception chaining, resolving the deferral
+  from ADR-0008/0009.
+- `DetectedField.selector`: `#<id>` preferred, `[name="..."]` fallback,
+  `None` if neither exists. Fields with no selector are never matched.
+- `FieldMatcher` Protocol (`application/interfaces/field_matcher.py`)
+  and `ExactFieldMatcher` (`application/services/field_matcher.py`, a
+  new package for pure-logic implementations of application-layer
+  interfaces with no external dependency) -- conservative, exact-match
+  matching only (structural HTML type signals, a small explicit synonym
+  set, exact label-to-`Answer.question_key` matching), never fuzzy.
+- `AutofillApplicationUseCase`: orchestrates detection → matching →
+  filling for a given Profile. Never submits. Verified end-to-end
+  against real Chromium, reading back actual DOM state after autofill.
+- `utils/slugify.py`: extracted from `Answer.question_key`'s
+  normalization so `ExactFieldMatcher` uses the identical rule, rather
+  than a separately-maintained regex that could silently drift.
 - `docs/adr/0009-form-field-detector.md`: the design decisions behind
   Milestone 9, including a mid-design correction to ADR-0008's original
   plan (form detection composed separately, not added as a new
