@@ -98,8 +98,16 @@ Playwright, always stopping short of final submission for human review.
   deferral from ADR-0008/0009). `DetectedField` gained `selector`;
   fields without one are never matched. Verified end-to-end against a
   real page, reading back actual DOM state after autofill.
-- ⬜ **M11 — Resume upload handling**: attach the selected resume file to
-  a detected file-upload field.
+- ✅ **M11 — Resume upload handling**: `BrowserAutomationEngine.upload_file()`,
+  validated against a real file before calling into Playwright (a
+  missing file otherwise fails slowly and misleadingly -- see ADR-0011).
+  `ExactFieldMatcher` matches file-upload fields only via an explicit
+  resume synonym on the field's name/label, never by `field_type ==
+  "file"` alone -- verified end-to-end that a resume never gets
+  uploaded into an unrelated file input (e.g. a cover letter field) even
+  when one is present on the same page. `AutofillApplicationUseCase`
+  gained `ResumeRepository` and an optional `resume_id` parameter,
+  resolving the deferral from ADR-0010.
 - ⬜ **M12 — Human review gate**: an explicit "review and confirm" step
   in the use case/CLI flow before any submit button is engaged; JAAP never
   clicks submit automatically at this stage.

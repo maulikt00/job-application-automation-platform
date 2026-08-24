@@ -14,6 +14,8 @@ collect this as a test module itself, which it isn't.
 
 from __future__ import annotations
 
+from pathlib import Path
+
 from jaap.domain.models import (
     Answer,
     AnswerId,
@@ -135,17 +137,17 @@ class FakeApplicationRepository:
 
 
 class FakeBrowserEngine:
-    """Fake BrowserAutomationEngine recording every fill/check/select_option
-    call it receives, so AutofillApplicationUseCase's dispatch logic
-    (fill() vs check() vs select_option()) can be asserted on directly
-    without a real browser. Only implements the methods
-    AutofillApplicationUseCase actually calls -- launch/navigate/etc.
-    aren't needed for these tests."""
+    """Fake BrowserAutomationEngine recording every fill/check/select_option/
+    upload_file call it receives, so AutofillApplicationUseCase's dispatch
+    logic can be asserted on directly without a real browser. Only
+    implements the methods AutofillApplicationUseCase actually calls --
+    launch/navigate/etc. aren't needed for these tests."""
 
     def __init__(self) -> None:
         self.filled: list[tuple[str, str]] = []
         self.checked: list[tuple[str, bool]] = []
         self.selected: list[tuple[str, str]] = []
+        self.uploaded: list[tuple[str, str]] = []
 
     def fill(self, selector: str, value: str) -> None:
         self.filled.append((selector, value))
@@ -155,6 +157,16 @@ class FakeBrowserEngine:
 
     def select_option(self, selector: str, value: str) -> None:
         self.selected.append((selector, value))
+
+    def upload_file(self, selector: str, file_path: Path) -> None:
+        # .as_posix(), not str(): this is a test double used purely for
+        # assertions -- it has no reason to render platform-dependent
+        # separators (backslashes on Windows) the way the real
+        # PlaywrightBrowserEngine correctly does for actual OS file
+        # access. Same root cause as the Windows path bug fixed in
+        # resume_mapper.py (Milestone 5/6), here in a test double instead
+        # of production code.
+        self.uploaded.append((selector, file_path.as_posix()))
 
 
 class FakeFormFieldDetector:
@@ -178,5 +190,5 @@ class FakeFieldMatcher:
     def __init__(self, result) -> None:
         self._result = result
 
-    def match(self, fields, profile, answers):
+    def match(self, fields, profile, answers, resume=None):
         return self._result

@@ -8,9 +8,18 @@ DetectedField inputs.
 
 from __future__ import annotations
 
+from pathlib import Path
+
 from jaap.application.interfaces.form_field_detector import DetectedField
 from jaap.application.services.field_matcher import ExactFieldMatcher
-from jaap.domain.models import Answer, Profile, new_answer_id, new_profile_id
+from jaap.domain.models import (
+    Answer,
+    Profile,
+    Resume,
+    new_answer_id,
+    new_profile_id,
+    new_resume_id,
+)
 
 
 def _profile(**overrides) -> Profile:
@@ -167,3 +176,60 @@ def test_multiple_fields_are_matched_and_unmatched_independently() -> None:
 
     assert [m.field.selector for m in result.matched] == ["#e"]
     assert [f.selector for f in result.unmatched] == ["#m"]
+
+
+def test_file_field_with_resume_synonym_matches_when_resume_is_provided() -> None:
+    profile = _profile()
+    resume = Resume(id=new_resume_id(), profile_id=profile.id, label="R", file_path=Path("resumes/r.pdf"))
+    field = _field(field_type="file", name="resume")
+
+    result = ExactFieldMatcher().match([field], profile, [], resume=resume)
+
+    assert result.matched[0].value == "resumes/r.pdf"
+    assert result.matched[0].source == "resume.file_path"
+
+
+def test_file_field_with_resume_synonym_matches_via_label() -> None:
+    profile = _profile()
+    resume = Resume(id=new_resume_id(), profile_id=profile.id, label="R", file_path=Path("r.pdf"))
+    field = _field(field_type="file", name="upload_1", label="Attach Resume")
+
+    result = ExactFieldMatcher().match([field], profile, [], resume=resume)
+
+    assert result.matched[0].source == "resume.file_path"
+
+
+def test_file_field_is_unmatched_when_no_resume_is_provided_even_with_resume_synonym() -> None:
+    profile = _profile()
+    field = _field(field_type="file", name="resume")
+
+    result = ExactFieldMatcher().match([field], profile, [], resume=None)
+
+    assert result.matched == []
+    assert result.unmatched == [field]
+
+
+def test_file_field_without_resume_synonym_is_never_matched_even_with_a_resume_available() -> None:
+    # The critical correctness case: a resume is available, but this
+    # field's name/label doesn't suggest it's for a resume -- e.g. a
+    # cover letter or portfolio upload. Must NOT receive the resume.
+    profile = _profile()
+    resume = Resume(id=new_resume_id(), profile_id=profile.id, label="R", file_path=Path("r.pdf"))
+    field = _field(field_type="file", name="cover_letter", label="Cover Letter")
+
+    result = ExactFieldMatcher().match([field], profile, [], resume=resume)
+
+    assert result.matched == []
+    assert result.unmatched == [field]
+
+
+def test_file_field_type_alone_is_never_sufficient_to_match() -> None:
+    # field_type == "file" with no resume-related name/label at all.
+    profile = _profile()
+    resume = Resume(id=new_resume_id(), profile_id=profile.id, label="R", file_path=Path("r.pdf"))
+    field = _field(field_type="file", name="attachment_3")
+
+    result = ExactFieldMatcher().match([field], profile, [], resume=resume)
+
+    assert result.matched == []
+    assert result.unmatched == [field]

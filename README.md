@@ -72,10 +72,10 @@ python -m playwright install chromium
 pytest tests/unit -v
 ```
 
-213 tests, covering domain models, configuration/logging, the database
+226 tests, covering domain models, configuration/logging, the database
 layer, all six repositories, core use cases, the CLI, and browser
-automation including form field detection and autofill (run against a
-real headless Chromium instance, not mocks).
+automation including form field detection, autofill, and resume upload
+(run against a real headless Chromium instance, not mocks).
 
 ## Tech Stack
 

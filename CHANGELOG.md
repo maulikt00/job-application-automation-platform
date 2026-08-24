@@ -9,6 +9,26 @@ which it will move to [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- `docs/adr/0011-resume-upload.md`: the design decisions behind
+  Milestone 11, including the finding that Playwright's
+  `set_input_files()` fails slowly (30s) and misleadingly for a missing
+  file, and why file-upload fields require an explicit resume synonym
+  to match rather than matching any `type="file"` input.
+- `BrowserAutomationEngine.upload_file(selector, file_path)`: validates
+  the file exists before calling into Playwright, raising
+  `BrowserAutomationError` immediately (not after a 30-second timeout)
+  if it doesn't.
+- `ExactFieldMatcher` now accepts an optional `resume` parameter
+  (`FieldMatcher.match()`'s signature changed accordingly) and matches
+  file-upload fields only via an explicit resume synonym
+  (`resume`, `cv`, `resume-upload`, etc.) on the field's name/label --
+  never unconditionally by `field_type == "file"`, since a real form can
+  have file uploads for a cover letter, portfolio, or transcript too.
+- `AutofillApplicationUseCase` gained `ResumeRepository` and an optional
+  `resume_id` parameter on `execute()`, resolving the deferral from
+  ADR-0010's decision #8. Verified end-to-end that a resume never gets
+  uploaded into an unrelated file input even when both a resume field
+  and a cover-letter field are present on the same page.
 - `docs/adr/0010-autofill-engine.md`: the design decisions behind
   Milestone 10, including conservative/exact-only matching, the
   `application/services/` package rationale, and the finding that
@@ -188,6 +208,15 @@ which it will move to [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- `tests/unit/application/use_cases/fakes.py`: `FakeBrowserEngine.upload_file`
+  now records paths via `.as_posix()` instead of `str()`, matching the
+  `resume_mapper.py` fix below. Caught on a real Windows checkout: the
+  fake stored `str(file_path)`, which renders with Windows' native
+  backslash separator, so a test asserting against a forward-slash
+  string failed there while passing on Linux/Mac. The real
+  `PlaywrightBrowserEngine.upload_file` correctly uses `str(file_path)`
+  for actual OS file access -- only the test double needed to change,
+  since it exists purely for platform-independent assertions.
 - `requirements.txt`: `playwright` pinned tightly to `==1.56.0`, not a
   version range. A clean-venv check caught `1.62.0` raising "using
   Playwright Sync API inside the asyncio loop" the moment
