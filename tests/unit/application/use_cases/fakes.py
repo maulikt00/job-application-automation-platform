@@ -14,6 +14,8 @@ collect this as a test module itself, which it isn't.
 
 from __future__ import annotations
 
+from pathlib import Path
+
 from jaap.domain.models import (
     Answer,
     AnswerId,
@@ -156,8 +158,15 @@ class FakeBrowserEngine:
     def select_option(self, selector: str, value: str) -> None:
         self.selected.append((selector, value))
 
-    def upload_file(self, selector: str, file_path) -> None:
-        self.uploaded.append((selector, str(file_path)))
+    def upload_file(self, selector: str, file_path: Path) -> None:
+        # .as_posix(), not str(): this is a test double used purely for
+        # assertions -- it has no reason to render platform-dependent
+        # separators (backslashes on Windows) the way the real
+        # PlaywrightBrowserEngine correctly does for actual OS file
+        # access. Same root cause as the Windows path bug fixed in
+        # resume_mapper.py (Milestone 5/6), here in a test double instead
+        # of production code.
+        self.uploaded.append((selector, file_path.as_posix()))
 
 
 class FakeFormFieldDetector:

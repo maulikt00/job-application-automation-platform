@@ -208,6 +208,15 @@ which it will move to [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- `tests/unit/application/use_cases/fakes.py`: `FakeBrowserEngine.upload_file`
+  now records paths via `.as_posix()` instead of `str()`, matching the
+  `resume_mapper.py` fix below. Caught on a real Windows checkout: the
+  fake stored `str(file_path)`, which renders with Windows' native
+  backslash separator, so a test asserting against a forward-slash
+  string failed there while passing on Linux/Mac. The real
+  `PlaywrightBrowserEngine.upload_file` correctly uses `str(file_path)`
+  for actual OS file access -- only the test double needed to change,
+  since it exists purely for platform-independent assertions.
 - `requirements.txt`: `playwright` pinned tightly to `==1.56.0`, not a
   version range. A clean-venv check caught `1.62.0` raising "using
   Playwright Sync API inside the asyncio loop" the moment
