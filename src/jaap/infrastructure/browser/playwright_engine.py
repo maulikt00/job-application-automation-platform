@@ -115,6 +115,21 @@ class PlaywrightBrowserEngine:
                 f"Failed to select {value!r} on {selector!r}: {exc}"
             ) from exc
 
+    def upload_file(self, selector: str, file_path: Path) -> None:
+        if not file_path.exists():
+            # Deliberately checked BEFORE calling into Playwright: a
+            # missing file otherwise produces a slow (30+ second), actively
+            # misleading failure ("waiting for locator", no mention that
+            # the file doesn't exist) -- verified against a real browser
+            # while designing this method. See ADR-0011.
+            raise BrowserAutomationError(f"Resume file not found: {file_path}")
+        try:
+            self._require_page().set_input_files(selector, str(file_path))
+        except PlaywrightError as exc:
+            raise BrowserAutomationError(
+                f"Failed to upload {file_path} to {selector!r}: {exc}"
+            ) from exc
+
     def screenshot(self, path: Path) -> None:
         try:
             path.parent.mkdir(parents=True, exist_ok=True)

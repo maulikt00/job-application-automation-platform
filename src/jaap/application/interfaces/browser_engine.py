@@ -32,6 +32,17 @@ three action primitives an autofill engine needs -- still generic (any
 web automation needs "fill a field" or "check a box," not just job
 applications), following the exact same reasoning as `evaluate()`.
 
+`upload_file()` (added Milestone 11) is the fourth: attaching a local
+file to a file-input field. Named for this project's own vocabulary,
+not Playwright's (`set_input_files`) -- consistent with how `check()`
+already diverges from Playwright's separate `check`/`uncheck` methods.
+Implementations must validate the file exists BEFORE calling into the
+underlying browser library: testing against a real browser found that
+a missing file produces a slow (30+ second), actively misleading
+failure ("waiting for locator" with no mention that the file doesn't
+exist) rather than a fast, clear one -- see
+docs/adr/0011-resume-upload.md.
+
 Exception translation (deferred in ADR-0008/0009 until there was a
 concrete consumer): every operational method here can raise
 `jaap.domain.exceptions.BrowserAutomationError` if the underlying
@@ -90,6 +101,17 @@ class BrowserAutomationEngine(Protocol):
     def select_option(self, selector: str, value: str) -> None:
         """Select the option with the given `value` in a <select> element
         matching `selector`."""
+        ...
+
+    def upload_file(self, selector: str, file_path: Path) -> None:
+        """Attach the local file at `file_path` to a file-input element
+        matching `selector`.
+
+        Implementations must validate `file_path` exists before calling
+        into the underlying browser library and raise
+        BrowserAutomationError immediately if it doesn't -- see this
+        module's docstring for why.
+        """
         ...
 
     def screenshot(self, path: Path) -> None:
