@@ -232,3 +232,36 @@ def test_select_option_on_a_non_select_element_raises_browser_automation_error(
         with pytest.raises(BrowserAutomationError) as exc_info:
             engine.select_option("#t", "a")
         assert exc_info.value.__cause__ is not None
+
+
+_FILE_UPLOAD_PAGE = 'data:text/html,<html><body><input id="f" type="file"></body></html>'
+
+
+def test_upload_file_attaches_a_real_file(settings: Settings, tmp_path: Path) -> None:
+    resume = tmp_path / "resume.pdf"
+    resume.write_bytes(b"%PDF-1.4 fake resume content")
+
+    with PlaywrightBrowserEngine(settings) as engine:
+        engine.navigate(_FILE_UPLOAD_PAGE)
+        engine.upload_file("#f", resume)
+        uploaded_name = engine.evaluate("document.getElementById('f').files[0].name")
+
+    assert uploaded_name == "resume.pdf"
+
+
+def test_upload_file_with_missing_file_raises_fast_and_clearly(settings: Settings) -> None:
+    missing = Path("/tmp/definitely_does_not_exist_12345.pdf")
+
+    with PlaywrightBrowserEngine(settings) as engine:
+        engine.navigate(_FILE_UPLOAD_PAGE)
+        with pytest.raises(BrowserAutomationError, match="not found"):
+            engine.upload_file("#f", missing)
+
+
+def test_upload_file_before_launch_raises_runtime_error(settings: Settings, tmp_path: Path) -> None:
+    engine = PlaywrightBrowserEngine(settings)
+    resume = tmp_path / "resume.pdf"
+    resume.write_bytes(b"content")
+
+    with pytest.raises(RuntimeError, match="launch"):
+        engine.upload_file("#f", resume)
