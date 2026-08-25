@@ -25,6 +25,7 @@ from jaap.application.exceptions import UseCaseError
 from jaap.application.interfaces.repositories import (
     AnswerRepository,
     ApplicationRepository,
+    CoverLetterTemplateRepository,
     JobPostingRepository,
     ProfileRepository,
     ResumeRepository,
@@ -38,6 +39,9 @@ from jaap.infrastructure.database.repositories.sqlite_answer_repository import (
 )
 from jaap.infrastructure.database.repositories.sqlite_application_repository import (
     SqliteApplicationRepository,
+)
+from jaap.infrastructure.database.repositories.sqlite_cover_letter_template_repository import (
+    SqliteCoverLetterTemplateRepository,
 )
 from jaap.infrastructure.database.repositories.sqlite_job_posting_repository import (
     SqliteJobPostingRepository,
@@ -83,6 +87,7 @@ class Context:
     job_posting_repository: JobPostingRepository
     application_repository: ApplicationRepository
     answer_repository: AnswerRepository
+    cover_letter_template_repository: CoverLetterTemplateRepository
     settings: Settings
 
 
@@ -112,6 +117,7 @@ def build_context(settings: Settings) -> Context:
         job_posting_repository=SqliteJobPostingRepository(session_factory),
         application_repository=SqliteApplicationRepository(session_factory),
         answer_repository=SqliteAnswerRepository(session_factory),
+        cover_letter_template_repository=SqliteCoverLetterTemplateRepository(session_factory),
         settings=settings,
     )
 
