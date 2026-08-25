@@ -23,6 +23,7 @@ from dataclasses import dataclass
 
 from jaap.application.exceptions import UseCaseError
 from jaap.application.interfaces.repositories import (
+    AnswerRepository,
     ApplicationRepository,
     JobPostingRepository,
     ProfileRepository,
@@ -32,6 +33,9 @@ from jaap.domain.exceptions import DomainError
 from jaap.infrastructure.config.logging_config import configure_logging
 from jaap.infrastructure.config.settings import Settings
 from jaap.infrastructure.database.base import Base
+from jaap.infrastructure.database.repositories.sqlite_answer_repository import (
+    SqliteAnswerRepository,
+)
 from jaap.infrastructure.database.repositories.sqlite_application_repository import (
     SqliteApplicationRepository,
 )
@@ -57,18 +61,29 @@ from jaap.presentation.cli.commands import (
 
 @dataclass
 class Context:
-    """Bundles the repository interfaces every command handler needs.
+    """Bundles the repository interfaces every command handler needs,
+    plus Settings.
 
-    A plain dataclass of Protocol-typed fields -- command handlers depend
-    on these interfaces, never on the concrete SqliteXRepository classes
-    directly, so the same handler code is testable with fakes (see
-    tests/unit/presentation/cli/) with zero changes.
+    A plain dataclass of Protocol-typed fields (repositories) -- command
+    handlers depend on these interfaces, never on the concrete
+    SqliteXRepository classes directly, so the same handler code is
+    testable with fakes (see tests/unit/presentation/cli/) with zero
+    changes.
+
+    `settings` (added Milestone 12) is here so command handlers that need
+    a browser (currently just `application review`) can construct a
+    PlaywrightBrowserEngine on demand, inside their own handler --
+    deliberately NOT constructed eagerly in build_context() for every
+    invocation, since launching a real browser is comparatively slow and
+    most commands (profile create, resume add, ...) never need one.
     """
 
     profile_repository: ProfileRepository
     resume_repository: ResumeRepository
     job_posting_repository: JobPostingRepository
     application_repository: ApplicationRepository
+    answer_repository: AnswerRepository
+    settings: Settings
 
 
 def build_context(settings: Settings) -> Context:
@@ -96,6 +111,8 @@ def build_context(settings: Settings) -> Context:
         resume_repository=SqliteResumeRepository(session_factory),
         job_posting_repository=SqliteJobPostingRepository(session_factory),
         application_repository=SqliteApplicationRepository(session_factory),
+        answer_repository=SqliteAnswerRepository(session_factory),
+        settings=settings,
     )
 
 
