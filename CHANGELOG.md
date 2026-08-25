@@ -9,6 +9,43 @@ which it will move to [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- `docs/adr/0013-submitted-content-snapshot.md`: durable, immutable
+  evidence of what was actually submitted with an `Application` --
+  resolves a gap flagged since the Milestone 2 review, formally deferred
+  twice (ADR-0004, then again pending Milestone 6), now resolved as part
+  of the pre-Phase-3 cleanup.
+- `SubmittedContentSnapshot`/`SubmittedAnswer` (`domain/models/application.py`):
+  frozen value objects recording resume label/filename, literal answer
+  text, and literal cover letter text, set exactly once at the
+  `DRAFT -> SUBMITTED` transition and retained through every later
+  status change. `Application.content_snapshot` joins the existing
+  `_PROTECTED_FIELDS` guard.
+- `Application.transition_to()` gained an optional `content_snapshot`
+  parameter, required if and only if transitioning to `SUBMITTED`.
+- `ApplicationORM.content_snapshot`: a single nullable JSON column (no
+  new table -- this data is write-once and read back as a whole unit).
+- `SubmitApplicationUseCase` gained `ResumeRepository`, `AnswerRepository`,
+  and `CoverLetterTemplateRepository` dependencies (alongside its
+  existing `ApplicationRepository`) to resolve referenced content into
+  the snapshot at submission time, plus a `cover_letter_text_override`
+  parameter for Milestone 16's AI-generated, possibly one-off cover
+  letters that may never be saved as a reusable `CoverLetterTemplate`.
+  Snapshot construction itself is a private module-level function, not
+  a new class or `Protocol` -- evaluated explicitly against introducing
+  one and rejected (see ADR-0013).
+- `AnswerNotFoundError`, `CoverLetterTemplateNotFoundError`
+  (`application/exceptions.py`): defensive additions for consistency
+  with every other referenced-entity lookup in this module.
+- `tests/unit/architecture/test_dependency_boundaries.py`: AST-based
+  (no third-party architecture-linting dependency) enforcement of the
+  dependency rule and the AI/browser separation. Verified to actually
+  catch a real violation before being relied on, by deliberately
+  introducing one, confirming the test failed with a clear message,
+  then removing it.
+- `SECURITY.md`: practical, current-state security guidance, grounded in
+  the actual `.gitignore`/`.env.example`/logging behavior rather than
+  generic claims -- including an explicit, undehedged note that
+  `Settings.anthropic_api_key` has no secret-scrubbing yet.
 - `docs/adr/0012-human-review-gate.md`: the design decisions behind
   Milestone 12 (Phase 2's capstone), including why no `click()`/`submit()`
   capability exists anywhere in `BrowserAutomationEngine`, the
@@ -261,6 +298,17 @@ which it will move to [Semantic Versioning](https://semver.org/).
 
 ### Changed
 
+- `ARCHITECTURE.md` fully rewritten to accurately describe the
+  architecture as it actually exists (through this pre-Phase-3 cleanup),
+  explicitly distinguishing built functionality from Phase 3/4/5 planned
+  work. Previously described `ClaudeProvider`/`OllamaProvider`/connectors/
+  `GenerateCoverLetterUseCase` as if already built; corrected the Testing
+  Strategy section (all tests actually live under `tests/unit/`;
+  `tests/integration/` was an unused scaffold from Milestone 1's
+  original planned layout).
+- `presentation/cli/main.py`'s `Context` gained
+  `cover_letter_template_repository` (a real gap: `SubmitApplicationUseCase`
+  now needs it, and nothing in the CLI had ever constructed one before).
 - `ApplicationORM.status_events` and the new `.answer_associations` now
   use `lazy="selectin"` (eager loading), removing the most common way to
   hit `DetachedInstanceError` when a repository accesses either

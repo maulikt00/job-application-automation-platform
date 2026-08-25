@@ -15,6 +15,7 @@ from jaap.presentation.cli.main import Context
 from tests.unit.application.use_cases.fakes import (
     FakeAnswerRepository,
     FakeApplicationRepository,
+    FakeCoverLetterTemplateRepository,
     FakeJobPostingRepository,
     FakeProfileRepository,
     FakeResumeRepository,
@@ -28,6 +29,7 @@ def _make_context() -> Context:
         job_posting_repository=FakeJobPostingRepository(),
         application_repository=FakeApplicationRepository(),
         answer_repository=FakeAnswerRepository(),
+        cover_letter_template_repository=FakeCoverLetterTemplateRepository(),
         settings=Settings(_env_file=None),
     )
 

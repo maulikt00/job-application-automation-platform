@@ -88,7 +88,12 @@ def _handle_attach_resume(args: argparse.Namespace, context: Context) -> int:
 
 
 def _handle_submit(args: argparse.Namespace, context: Context) -> int:
-    use_case = SubmitApplicationUseCase(context.application_repository)
+    use_case = SubmitApplicationUseCase(
+        context.application_repository,
+        context.resume_repository,
+        context.answer_repository,
+        context.cover_letter_template_repository,
+    )
     application = use_case.execute(ApplicationId(args.application_id))
     print(f"Submitted application {application.id} (status: {application.current_status.value})")
     return 0

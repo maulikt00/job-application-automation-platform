@@ -20,6 +20,10 @@ docs/adr/0005-repository-interfaces-and-mapping-strategy.md):
     nothing currently needs (see ADR-0005 for the full trade-off).
     **NOT handled here** -- see `update_orm()`'s docstring for why this
     one specifically lives in the repository instead.
+  - `content_snapshot` (Milestone 13/ADR-0013) is write-once and never
+    append-only or independently orderable -- unlike `answer_ids`, no
+    reconciliation logic is needed at all, just a straightforward
+    serialize/deserialize via Pydantic's model_dump()/model_validate().
 
 `to_domain` relies on `ApplicationORM.status_events` and
 `.answer_associations` already being ordered (by `sequence`/`position`
@@ -40,6 +44,7 @@ from jaap.domain.models import (
     ProfileId,
     ResumeId,
 )
+from jaap.domain.models.application import SubmittedContentSnapshot
 from jaap.infrastructure.database.models import (
     ApplicationORM,
     ApplicationStatusEventORM,
@@ -56,6 +61,11 @@ def to_domain(orm: ApplicationORM) -> Application:
         for event in orm.status_events
     )
     answer_ids = tuple(AnswerId(assoc.answer_id) for assoc in orm.answer_associations)
+    content_snapshot = (
+        SubmittedContentSnapshot.model_validate(orm.content_snapshot)
+        if orm.content_snapshot is not None
+        else None
+    )
 
     return Application(
         id=ApplicationId(orm.id),
@@ -70,6 +80,7 @@ def to_domain(orm: ApplicationORM) -> Application:
         answer_ids=answer_ids,
         current_status=ApplicationStatus(orm.current_status),
         status_history=status_history,
+        content_snapshot=content_snapshot,
         created_at=orm.created_at,
     )
 
@@ -91,6 +102,11 @@ def update_orm(domain: Application, orm: ApplicationORM) -> None:
     orm.resume_id = domain.resume_id
     orm.cover_letter_template_id = domain.cover_letter_template_id
     orm.current_status = domain.current_status.value
+    orm.content_snapshot = (
+        domain.content_snapshot.model_dump(mode="json")
+        if domain.content_snapshot is not None
+        else None
+    )
     orm.created_at = domain.created_at
 
     # status_history: append-only tail-insert (see module docstring).

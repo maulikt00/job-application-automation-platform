@@ -120,6 +120,43 @@ Playwright, always stopping short of final submission for human review.
   `BrowserAutomationEngine.__exit__` was found and fixed while wiring
   this up. **This completes Phase 2.**
 
+## Pre-Phase-3 Cleanup
+
+A lead-engineer-style review after Phase 2's completion identified four
+items worth resolving before Phase 3 begins, rather than letting them
+compound further. All four are complete:
+
+- ✅ **Application content snapshot** ([ADR-0013](docs/adr/0013-submitted-content-snapshot.md)):
+  `SubmittedContentSnapshot`/`SubmittedAnswer`, durable immutable
+  evidence of what was actually submitted, set exactly once at the
+  `DRAFT -> SUBMITTED` transition. Resolves a gap flagged as far back as
+  the Milestone 2 review and formally deferred (twice) since. Directly
+  unblocks Milestone 16's AI-generated, possibly one-off cover letters,
+  which now have a concrete place to land even when never saved as a
+  reusable `CoverLetterTemplate` (via `SubmitApplicationUseCase`'s new
+  `cover_letter_text_override` parameter).
+- ✅ **`ARCHITECTURE.md` brought current**: rewritten to accurately
+  describe the architecture through this cleanup pass -- `application/services/`,
+  `FormFieldDetector`/`FieldMatcher`, the CLI's `Context`/composition-root
+  pattern, and a corrected Testing Strategy section (all tests actually
+  live under `tests/unit/`; `tests/integration/` was an unused scaffold).
+  Explicitly distinguishes built functionality from Phase 3/4/5 planned work.
+- ✅ **Architecture boundary tests** (`tests/unit/architecture/test_dependency_boundaries.py`):
+  AST-based, dependency-only (no third-party architecture-linting
+  library) enforcement of the dependency rule and the AI/browser
+  separation. Verified to actually catch a real violation (tested by
+  deliberately introducing one, confirming failure, then removing it)
+  before being relied on as a safety net -- this makes the "AI never
+  touches browser automation" rule a continuously-checked fact rather
+  than manual discipline alone, which matters starting now that
+  Phase 3 is about to populate `infrastructure/ai/` for the first time.
+- ✅ **`SECURITY.md`**: practical, current-state guidance (API keys,
+  `.env`/`.gitignore`, Ollama, browser session data, logging, sensitive
+  application data, vulnerability reporting) -- including an honest,
+  undehedged note that `Settings.anthropic_api_key` has no secret-scrubbing
+  yet (no `SecretStr`, no logging redaction), left as a known limitation
+  rather than silently fixed as an unrelated change.
+
 ## Phase 3 — AI Integration
 
 **Goal:** add AI assistance for content generation and decision support,
