@@ -17,6 +17,7 @@ from jaap.domain.models import (
     new_job_posting_id,
     new_profile_id,
 )
+from jaap.domain.models.application import SubmittedAnswer, SubmittedContentSnapshot
 from jaap.infrastructure.database.repositories.sqlite_answer_repository import (
     SqliteAnswerRepository,
 )
@@ -58,7 +59,8 @@ def test_status_transitions_persist_across_saves(session_factory) -> None:
     application = Application(id=new_application_id(), profile_id=profile.id, job_posting_id=posting.id)
     repo.save(application)
 
-    application.transition_to(ApplicationStatus.SUBMITTED)
+    snapshot = SubmittedContentSnapshot(resume_label="Backend", resume_file_name="backend.pdf")
+    application.transition_to(ApplicationStatus.SUBMITTED, content_snapshot=snapshot)
     repo.save(application)
     application.transition_to(ApplicationStatus.INTERVIEWING)
     repo.save(application)
@@ -68,6 +70,7 @@ def test_status_transitions_persist_across_saves(session_factory) -> None:
     assert [e.status for e in loaded.status_history] == [
         ApplicationStatus.DRAFT, ApplicationStatus.SUBMITTED, ApplicationStatus.INTERVIEWING,
     ]
+    assert loaded.content_snapshot == snapshot
 
 
 def test_answer_ids_persist_and_reflect_removal_across_saves(session_factory) -> None:
@@ -116,9 +119,47 @@ def test_delete_removes_the_application_and_its_status_events(session_factory) -
     profile, posting = _make_profile_and_posting(session_factory)
     repo = SqliteApplicationRepository(session_factory)
     application = Application(id=new_application_id(), profile_id=profile.id, job_posting_id=posting.id)
-    application.transition_to(ApplicationStatus.SUBMITTED)
+    application.transition_to(
+        ApplicationStatus.SUBMITTED, content_snapshot=SubmittedContentSnapshot(resume_label="R")
+    )
     repo.save(application)
 
     repo.delete(application.id)
 
     assert repo.get(application.id) is None
+
+
+def test_content_snapshot_with_answers_round_trips_through_real_sqlite(session_factory) -> None:
+    profile, posting = _make_profile_and_posting(session_factory)
+    repo = SqliteApplicationRepository(session_factory)
+    application = Application(id=new_application_id(), profile_id=profile.id, job_posting_id=posting.id)
+    repo.save(application)
+
+    snapshot = SubmittedContentSnapshot(
+        resume_label="Backend-focused",
+        resume_file_name="backend.pdf",
+        cover_letter_text="Dear team, I am excited to apply...",
+        answers=(
+            SubmittedAnswer(question_key="why-us", answer_text="Because of the mission."),
+            SubmittedAnswer(question_key="strengths", answer_text="Attention to detail."),
+        ),
+    )
+    application.transition_to(ApplicationStatus.SUBMITTED, content_snapshot=snapshot)
+    repo.save(application)
+
+    loaded = repo.get(application.id)
+
+    assert loaded.content_snapshot == snapshot
+    assert loaded.content_snapshot.answers[0].question_key == "why-us"
+    assert loaded.content_snapshot.answers[1].answer_text == "Attention to detail."
+
+
+def test_draft_application_has_no_content_snapshot_in_real_sqlite(session_factory) -> None:
+    profile, posting = _make_profile_and_posting(session_factory)
+    repo = SqliteApplicationRepository(session_factory)
+    application = Application(id=new_application_id(), profile_id=profile.id, job_posting_id=posting.id)
+    repo.save(application)
+
+    loaded = repo.get(application.id)
+
+    assert loaded.content_snapshot is None

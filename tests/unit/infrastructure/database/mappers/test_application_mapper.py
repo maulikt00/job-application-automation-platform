@@ -16,6 +16,7 @@ from jaap.domain.models import (
     new_profile_id,
     new_resume_id,
 )
+from jaap.domain.models.application import SubmittedContentSnapshot
 from jaap.infrastructure.database.mappers import application_mapper
 from jaap.infrastructure.database.models import ApplicationORM
 
@@ -58,7 +59,9 @@ def test_new_transitions_are_appended_not_replacing_existing_history() -> None:
     orm = ApplicationORM(id=domain.id)
     application_mapper.update_orm(domain, orm)
 
-    domain.transition_to(ApplicationStatus.SUBMITTED)
+    domain.transition_to(
+        ApplicationStatus.SUBMITTED, content_snapshot=SubmittedContentSnapshot(resume_label="R")
+    )
     application_mapper.update_orm(domain, orm)
     assert [e.status for e in orm.status_events] == ["draft", "submitted"]
     assert [e.sequence for e in orm.status_events] == [0, 1]

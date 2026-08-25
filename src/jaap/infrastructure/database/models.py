@@ -50,6 +50,7 @@ from __future__ import annotations
 
 import uuid
 from datetime import datetime, timezone
+from typing import Any
 
 from sqlalchemy import (
     JSON,
@@ -199,6 +200,14 @@ class ApplicationORM(Base):
         Uuid, ForeignKey("cover_letter_templates.id", ondelete="RESTRICT"), nullable=True
     )
     current_status: Mapped[str] = mapped_column(String, nullable=False)
+    # Durable, immutable evidence of what was actually submitted (see
+    # ADR-0013). A single nullable JSON blob, not a new table: this data
+    # is written once (at the DRAFT -> SUBMITTED transition) and read
+    # back as a whole unit, never partially queried/filtered at the SQL
+    # level, so a JSON column is the smallest correct representation --
+    # matching the existing pattern already used for Answer.tags and
+    # JobPosting.platform_metadata.
+    content_snapshot: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)
     created_at: Mapped[datetime] = mapped_column(UTCDateTime, nullable=False, default=_utc_now)
     updated_at: Mapped[datetime] = mapped_column(
         UTCDateTime, nullable=False, default=_utc_now, onupdate=_utc_now
