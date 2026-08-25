@@ -108,9 +108,17 @@ Playwright, always stopping short of final submission for human review.
   when one is present on the same page. `AutofillApplicationUseCase`
   gained `ResumeRepository` and an optional `resume_id` parameter,
   resolving the deferral from ADR-0010.
-- ⬜ **M12 — Human review gate**: an explicit "review and confirm" step
-  in the use case/CLI flow before any submit button is engaged; JAAP never
-  clicks submit automatically at this stage.
+- ✅ **M12 — Human review gate**: `ReviewApplicationUseCase` (composes
+  `AutofillApplicationUseCase`, adds a screenshot) and the `jaap
+  application review` CLI command -- the first command to touch the
+  browser layer. No `click()`/`submit()` capability exists anywhere in
+  `BrowserAutomationEngine`, deliberately: this is a structural fact
+  making ADR-0001's "never blindly submit" promise verifiable by
+  inspection, not just a passive absence (see ADR-0012). Verified fully
+  end-to-end against a real local HTTP server and real Chromium. A real,
+  previously-unnoticed Protocol/implementation signature mismatch on
+  `BrowserAutomationEngine.__exit__` was found and fixed while wiring
+  this up. **This completes Phase 2.**
 
 ## Phase 3 — AI Integration
 

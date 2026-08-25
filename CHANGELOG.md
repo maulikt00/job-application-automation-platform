@@ -9,6 +9,22 @@ which it will move to [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- `docs/adr/0012-human-review-gate.md`: the design decisions behind
+  Milestone 12 (Phase 2's capstone), including why no `click()`/`submit()`
+  capability exists anywhere in `BrowserAutomationEngine`, the
+  screenshot-as-artifact decision (vs. a live browser handoff), and a
+  real `__exit__` Protocol/implementation signature mismatch found and
+  fixed while wiring up the review command.
+- `ReviewApplicationUseCase` + `ApplicationReview`
+  (`application/use_cases/review_application.py`): composes
+  `AutofillApplicationUseCase`, adds a post-fill screenshot for human
+  review.
+- `jaap application review` CLI command -- the first command to
+  construct and use a real `BrowserAutomationEngine`. `Context` gained
+  `settings` and `answer_repository` (the latter a real gap:
+  `AutofillApplicationUseCase` always needed one, nothing in the CLI had
+  ever constructed it). Verified fully end-to-end: real local HTTP
+  server, real Chromium, real screenshot confirmed on disk.
 - `docs/adr/0011-resume-upload.md`: the design decisions behind
   Milestone 11, including the finding that Playwright's
   `set_input_files()` fails slowly (30s) and misleadingly for a missing
@@ -208,6 +224,16 @@ which it will move to [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- `application/interfaces/browser_engine.py`: `BrowserAutomationEngine.__exit__`'s
+  Protocol signature changed from a loose `*exc_info: object` to the
+  precise `(exc_type, exc_value, traceback)` Python's real context
+  manager contract requires -- matching what `PlaywrightBrowserEngine.__exit__`
+  already correctly implemented. The mismatch went unnoticed through
+  Milestones 8-11 since the only prior conformance check (a variable
+  assignment) didn't exercise it strictly; passing a
+  `PlaywrightBrowserEngine` instance as a constructor argument
+  (Milestone 12's review command) did. Full project mypy check clean
+  after the fix.
 - `tests/unit/application/use_cases/fakes.py`: `FakeBrowserEngine.upload_file`
   now records paths via `.as_posix()` instead of `str()`, matching the
   `resume_mapper.py` fix below. Caught on a real Windows checkout: the
