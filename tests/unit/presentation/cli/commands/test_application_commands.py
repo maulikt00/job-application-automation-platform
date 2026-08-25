@@ -7,7 +7,10 @@ from pathlib import Path
 
 import pytest
 
-from jaap.application.exceptions import ApplicationNotReadyForSubmissionError
+from jaap.application.exceptions import (
+    ApplicationNotReadyForSubmissionError,
+    JobPostingNotFoundError,
+)
 from jaap.domain.models import (
     ApplicationStatus,
     JobPosting,
@@ -17,14 +20,17 @@ from jaap.domain.models import (
     new_profile_id,
     new_resume_id,
 )
+from jaap.infrastructure.config.settings import Settings
 from jaap.presentation.cli.commands.application_commands import (
     _handle_attach_resume,
     _handle_list,
+    _handle_review,
     _handle_start,
     _handle_submit,
 )
 from jaap.presentation.cli.main import Context
 from tests.unit.application.use_cases.fakes import (
+    FakeAnswerRepository,
     FakeApplicationRepository,
     FakeJobPostingRepository,
     FakeProfileRepository,
@@ -38,6 +44,8 @@ def _make_context() -> Context:
         resume_repository=FakeResumeRepository(),
         job_posting_repository=FakeJobPostingRepository(),
         application_repository=FakeApplicationRepository(),
+        answer_repository=FakeAnswerRepository(),
+        settings=Settings(_env_file=None),
     )
 
 
@@ -117,3 +125,22 @@ def test_handle_list_prints_each_application(capsys) -> None:
 
     assert exit_code == 0
     assert "status=draft" in capsys.readouterr().out
+
+
+def test_handle_review_raises_job_posting_not_found_before_touching_the_browser() -> None:
+    # _handle_review constructs a real PlaywrightBrowserEngine internally
+    # (it's composition-root-style code, like main.py's build_context),
+    # so it can't be fully unit-tested with fakes -- but the job-posting
+    # lookup happens BEFORE any browser is touched, so this specific path
+    # is fast and fake-testable. The real, full happy path is covered by
+    # tests/unit/infrastructure/browser/test_review_end_to_end.py.
+    context = _make_context()
+    args = argparse.Namespace(
+        profile_id=new_profile_id(),
+        job_posting_id=new_job_posting_id(),
+        resume_id=None,
+        screenshot_path=None,
+    )
+
+    with pytest.raises(JobPostingNotFoundError):
+        _handle_review(args, context)

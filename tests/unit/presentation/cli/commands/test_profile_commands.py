@@ -10,9 +10,11 @@ import argparse
 import uuid
 
 from jaap.domain.models import ProfileId
+from jaap.infrastructure.config.settings import Settings
 from jaap.presentation.cli.commands.profile_commands import _handle_create
 from jaap.presentation.cli.main import Context
 from tests.unit.application.use_cases.fakes import (
+    FakeAnswerRepository,
     FakeApplicationRepository,
     FakeJobPostingRepository,
     FakeProfileRepository,
@@ -26,6 +28,8 @@ def _make_context() -> Context:
         resume_repository=FakeResumeRepository(),
         job_posting_repository=FakeJobPostingRepository(),
         application_repository=FakeApplicationRepository(),
+        answer_repository=FakeAnswerRepository(),
+        settings=Settings(_env_file=None),
     )
 
 

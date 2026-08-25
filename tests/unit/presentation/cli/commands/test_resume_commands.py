@@ -9,9 +9,11 @@ import pytest
 
 from jaap.application.exceptions import ProfileNotFoundError
 from jaap.domain.models import Profile, new_profile_id
+from jaap.infrastructure.config.settings import Settings
 from jaap.presentation.cli.commands.resume_commands import _handle_add
 from jaap.presentation.cli.main import Context
 from tests.unit.application.use_cases.fakes import (
+    FakeAnswerRepository,
     FakeApplicationRepository,
     FakeJobPostingRepository,
     FakeProfileRepository,
@@ -25,6 +27,8 @@ def _make_context() -> Context:
         resume_repository=FakeResumeRepository(),
         job_posting_repository=FakeJobPostingRepository(),
         application_repository=FakeApplicationRepository(),
+        answer_repository=FakeAnswerRepository(),
+        settings=Settings(_env_file=None),
     )
 
 

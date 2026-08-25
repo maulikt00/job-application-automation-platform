@@ -27,10 +27,11 @@ becoming unmaintainable.
 ## Status
 
 🚧 Active development. See [PROJECT_ROADMAP.md](PROJECT_ROADMAP.md) for the
-full milestone breakdown. Milestones 1–5 of **Phase 1: Core Domain & Data**
-are complete: domain models, configuration/logging, the SQLite database
-layer, and repository implementations for all six aggregates. No use cases
-or CLI yet — those are next (Milestone 6+).
+full milestone breakdown. **Phase 1 (Core Domain & Data)** and **Phase 2
+(Browser Automation)** are complete: domain models, configuration/logging,
+the SQLite database layer, all six repositories, core use cases, a CLI,
+and browser automation through form detection, autofill, resume upload,
+and the human review gate. **Phase 3 (AI Integration)** is next.
 
 ## Architecture
 
@@ -53,8 +54,9 @@ See [PROJECT_ROADMAP.md](PROJECT_ROADMAP.md) for the milestone-level breakdown.
 
 ## Getting Started
 
-> Phase 1 (domain models through the CLI) is complete. Phase 2 (browser
-> automation) is in progress.
+> Phases 1 and 2 are complete: domain models through the CLI, plus
+> browser automation from field detection through the human review
+> gate. Phase 3 (AI integration) is next.
 
 ```bash
 python -m venv .venv
@@ -72,10 +74,11 @@ python -m playwright install chromium
 pytest tests/unit -v
 ```
 
-226 tests, covering domain models, configuration/logging, the database
+230 tests, covering domain models, configuration/logging, the database
 layer, all six repositories, core use cases, the CLI, and browser
-automation including form field detection, autofill, and resume upload
-(run against a real headless Chromium instance, not mocks).
+automation including form field detection, autofill, resume upload, and
+the human review gate (run against a real headless Chromium instance
+and a real local HTTP server, not mocks).
 
 ## Tech Stack
 
