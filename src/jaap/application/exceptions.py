@@ -15,7 +15,14 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from jaap.domain.models import ApplicationId, JobPostingId, ProfileId, ResumeId
+    from jaap.domain.models import (
+        AnswerId,
+        ApplicationId,
+        CoverLetterTemplateId,
+        JobPostingId,
+        ProfileId,
+        ResumeId,
+    )
 
 
 class UseCaseError(Exception):
@@ -53,6 +60,36 @@ class ResumeNotFoundError(UseCaseError):
     def __init__(self, resume_id: ResumeId) -> None:
         self.resume_id = resume_id
         super().__init__(f"No Resume found with id {resume_id}.")
+
+
+class AnswerNotFoundError(UseCaseError):
+    """Raised when a use case is given an AnswerId that doesn't resolve
+    to an existing Answer.
+
+    In normal operation this should be unreachable for an Answer already
+    referenced by an Application's `answer_ids` -- ADR-0004's RESTRICT
+    foreign key prevents deleting an Answer while it's still referenced.
+    Raised defensively rather than left to surface as an unexplained
+    AttributeError, for consistency with every other referenced-entity
+    lookup in this module.
+    """
+
+    def __init__(self, answer_id: AnswerId) -> None:
+        self.answer_id = answer_id
+        super().__init__(f"No Answer found with id {answer_id}.")
+
+
+class CoverLetterTemplateNotFoundError(UseCaseError):
+    """Raised when a use case is given a CoverLetterTemplateId that
+    doesn't resolve to an existing CoverLetterTemplate. Same reasoning as
+    AnswerNotFoundError: defensive, since ADR-0004's RESTRICT foreign key
+    should make this unreachable for a template already referenced by an
+    Application.
+    """
+
+    def __init__(self, template_id: CoverLetterTemplateId) -> None:
+        self.template_id = template_id
+        super().__init__(f"No CoverLetterTemplate found with id {template_id}.")
 
 
 class ApplicationNotFoundError(UseCaseError):
