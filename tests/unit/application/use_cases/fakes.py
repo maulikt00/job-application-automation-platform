@@ -138,16 +138,17 @@ class FakeApplicationRepository:
 
 class FakeBrowserEngine:
     """Fake BrowserAutomationEngine recording every fill/check/select_option/
-    upload_file call it receives, so AutofillApplicationUseCase's dispatch
-    logic can be asserted on directly without a real browser. Only
-    implements the methods AutofillApplicationUseCase actually calls --
-    launch/navigate/etc. aren't needed for these tests."""
+    upload_file/screenshot call it receives, so use case dispatch logic
+    can be asserted on directly without a real browser. Only implements
+    the methods use cases actually call -- launch/navigate/evaluate/close
+    aren't needed for these tests."""
 
     def __init__(self) -> None:
         self.filled: list[tuple[str, str]] = []
         self.checked: list[tuple[str, bool]] = []
         self.selected: list[tuple[str, str]] = []
         self.uploaded: list[tuple[str, str]] = []
+        self.screenshots: list[Path] = []
 
     def fill(self, selector: str, value: str) -> None:
         self.filled.append((selector, value))
@@ -167,6 +168,9 @@ class FakeBrowserEngine:
         # resume_mapper.py (Milestone 5/6), here in a test double instead
         # of production code.
         self.uploaded.append((selector, file_path.as_posix()))
+
+    def screenshot(self, path: Path) -> None:
+        self.screenshots.append(path)
 
 
 class FakeFormFieldDetector:
