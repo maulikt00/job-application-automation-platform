@@ -57,6 +57,7 @@ Playwright-raised error to begin with.
 from __future__ import annotations
 
 from pathlib import Path
+from types import TracebackType
 from typing import Any, Protocol, Self
 
 
@@ -135,5 +136,11 @@ class BrowserAutomationEngine(Protocol):
     def __enter__(self) -> Self:
         ...
 
-    def __exit__(self, *exc_info: object) -> None:
+    def __exit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc_value: BaseException | None,
+        traceback: TracebackType | None,
+        /,
+    ) -> None:
         ...
