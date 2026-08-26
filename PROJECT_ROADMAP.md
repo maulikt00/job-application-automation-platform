@@ -264,7 +264,16 @@ code — adding a platform means adding a connector.
   boundary (ADR-0001/0012); connectors must never use it on a final
   submit control. No implementation yet (M20-22); deliberately minimal
   testable surface, matching M13's `AIProvider`. See ADR-0020.
-- ⬜ **M20 — `GreenhouseConnector`**
+- ✅ **M20 — `GreenhouseConnector`**: the first concrete `WebsiteConnector`,
+  designed against Greenhouse's own published documentation and a real
+  embed-integration script (not assumed) -- two real hosting domains
+  found (`boards.greenhouse.io` and `job-boards.greenhouse.io`), plain
+  native HTML form fields confirmed (so `get_field_detector()` reuses
+  the generic `PlaywrightFormFieldDetector` unchanged), and an honest,
+  named scope limitation (embedded iframe integrations are out of
+  scope -- `BrowserAutomationEngine` has no cross-frame capability).
+  Verified against a real headless Chromium instance for both the
+  form-already-present and click-to-reveal-form cases. See ADR-0021.
 - ⬜ **M21 — `LeverConnector`**
 - ⬜ **M22 — `WorkdayConnector`**
 - ⬜ **M23 — End-to-end application flow**: profile + resume + AI cover

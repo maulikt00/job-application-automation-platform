@@ -9,6 +9,22 @@ which it will move to [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- `docs/adr/0021-greenhouse-connector.md`: the design decisions behind
+  Milestone 20, grounded in Greenhouse's own published documentation and
+  a real embed-integration script -- two real hosting domains found
+  (`boards.greenhouse.io`, `job-boards.greenhouse.io`), plain native
+  HTML form fields confirmed, and an honestly-named scope limitation
+  (embedded iframe integrations, since `BrowserAutomationEngine` has no
+  cross-frame capability). Also documents a real `data:` URL escaping
+  trap found during manual testing (a raw `#` in an `href` truncates
+  page content, since `#` starts a URL fragment).
+- `GreenhouseConnector` (`infrastructure/connectors/greenhouse_connector.py`):
+  the first concrete `WebsiteConnector`. `get_field_detector()` reuses
+  the generic `PlaywrightFormFieldDetector` unchanged, since Greenhouse
+  uses plain HTML form elements. `navigate_to_application_form()` checks
+  for the form first (the common case is a no-op) before falling back to
+  clicking a visible "Apply" element. Verified against real Chromium for
+  both cases.
 - `docs/adr/0020-website-connector-interface.md`: the design decisions
   behind Milestone 19 (Phase 4's opening milestone), including the
   explicitly-confirmed `click()` safety boundary and why
