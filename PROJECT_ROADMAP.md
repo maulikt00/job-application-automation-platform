@@ -176,8 +176,13 @@ without AI ever touching browser automation.
   lesson. No exception translation yet, mirroring the exact precedent
   set by `BrowserAutomationEngine` (deferred from its own first
   milestone to its first real use-case consumer). See ADR-0015.
-- ⬜ **M15 — `OllamaProvider`**: second concrete implementation, proving
-  the interface generalizes to a local model with no use-case changes.
+- ✅ **M15 — `OllamaProvider`**: second concrete implementation, built
+  against the actually-installed `ollama` SDK (inspected directly). Real
+  structural differences confirmed the interface generalizes rather than
+  just being Claude-shaped: `system_prompt` translates into a
+  `{"role": "system", ...}` message (Ollama has no separate `system`
+  parameter), `max_tokens` maps to `options.num_predict`, and no API key
+  is needed. Pinned tightly (`ollama==0.6.2`). See ADR-0016.
 - ⬜ **M16 — AI-generated cover letters**: `GenerateCoverLetterUseCase`
   composing profile + job posting + template into a prompt, with human
   edit/approval before saving.
