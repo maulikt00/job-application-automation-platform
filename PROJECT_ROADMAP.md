@@ -183,6 +183,19 @@ without AI ever touching browser automation.
   `{"role": "system", ...}` message (Ollama has no separate `system`
   parameter), `max_tokens` maps to `options.num_predict`, and no API key
   is needed. Pinned tightly (`ollama==0.6.2`). See ADR-0016.
+
+### CLI gap fix: `jaap answer` and `jaap cover-letter` commands
+
+Found while answering a practical question about Workday-based
+application forms, not part of any milestone's original scope:
+`SaveAnswerUseCase` and `SaveCoverLetterTemplateUseCase` have existed
+since Milestone 6, but neither was ever exposed through the CLI --
+`jaap answer save/list` and `jaap cover-letter save/list` close that gap.
+Directly relevant to autofill in practice: `ExactFieldMatcher` (Milestone
+10) can only match a detected field to a saved `Answer` if one already
+exists with a matching `question_key`, and there was previously no way
+to create one without calling the use case directly in Python.
+
 - ⬜ **M16 — AI-generated cover letters**: `GenerateCoverLetterUseCase`
   composing profile + job posting + template into a prompt, with human
   edit/approval before saving.

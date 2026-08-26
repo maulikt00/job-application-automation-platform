@@ -57,7 +57,9 @@ from jaap.infrastructure.database.session import (
     create_session_factory,
 )
 from jaap.presentation.cli.commands import (
+    answer_commands,
     application_commands,
+    cover_letter_commands,
     profile_commands,
     resume_commands,
 )
@@ -131,6 +133,8 @@ def build_parser() -> argparse.ArgumentParser:
     profile_commands.register(subparsers)
     resume_commands.register(subparsers)
     application_commands.register(subparsers)
+    answer_commands.register(subparsers)
+    cover_letter_commands.register(subparsers)
 
     return parser
 

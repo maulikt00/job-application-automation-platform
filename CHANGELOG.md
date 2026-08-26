@@ -9,6 +9,15 @@ which it will move to [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- `jaap answer save/list` and `jaap cover-letter save/list` CLI commands
+  (`presentation/cli/commands/answer_commands.py`,
+  `cover_letter_commands.py`). `SaveAnswerUseCase`/
+  `SaveCoverLetterTemplateUseCase` have existed since Milestone 6 with no
+  CLI exposure -- found and fixed while answering a practical question
+  about Workday-based application forms, since `ExactFieldMatcher`
+  (Milestone 10) can only autofill a field from a saved `Answer` that
+  already exists, and there was previously no way to create one without
+  calling the use case directly in Python.
 - `docs/adr/0016-ollama-provider.md`: the design decisions behind
   Milestone 15, including the real structural differences from
   Anthropic's API found by inspecting the actually-installed `ollama`
