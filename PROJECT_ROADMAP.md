@@ -207,8 +207,16 @@ to create one without calling the use case directly in Python.
   previously missing despite the use case supporting it since ADR-0013).
   Verified genuinely end-to-end through the real CLI and database. See
   ADR-0017.
-- ⬜ **M17 — AI-generated application answers**: reusable-answer
-  suggestions for free-text application questions, again with review.
+- ✅ **M17 — AI-generated application answers**: `GenerateAnswerUseCase`,
+  deliberately taking no `job_posting_id` (unlike Milestone 16's cover
+  letters) so generated answers stay genuinely safe to save and reuse
+  across different companies -- resolving a real tension between
+  "reusable answer" and "tailored to one employer" before it became a
+  bug. Existing saved `Answer`s are passed as context for tone
+  consistency. `jaap answer generate --save-as <question>` mirrors
+  `cover-letter generate`'s shape; passing the same text for both
+  `--question` and `--save-as` produces a `question_key` verified to
+  exactly match what `ExactFieldMatcher` computes later. See ADR-0018.
 - ⬜ **M18 — Resume recommendation**: suggest which stored resume best
   fits a given job posting.
 

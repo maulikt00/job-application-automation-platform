@@ -9,6 +9,21 @@ which it will move to [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- `docs/adr/0018-ai-generated-answers.md`: the design decisions behind
+  Milestone 17, including the deliberate decision to omit
+  `job_posting_id` (unlike Milestone 16's cover letters) so generated
+  answers stay genuinely safe to save and reuse across different
+  companies -- resolving a real reusability-vs-tailoring tension before
+  it became a bug.
+- `GenerateAnswerUseCase` (`application/use_cases/generate_answer.py`):
+  the second real use-case consumer of `AIProvider`. Company-agnostic by
+  design; passes the profile's existing saved `Answer`s as context for
+  tone consistency; never saves anything itself.
+- `jaap answer generate --save-as <question>` CLI command, mirroring
+  `cover-letter generate`'s shape. Passing the same text for both
+  `--question` and `--save-as` produces a `question_key` verified to
+  exactly match what `ExactFieldMatcher` computes from a real detected
+  field's label later, via `Answer.question_key`'s existing normalization.
 - `docs/adr/0017-ai-generated-cover-letters.md`: the design decisions
   behind Milestone 16, including the resolved (three-times-deferred)
   exception translation, the real asymmetry found between Anthropic's

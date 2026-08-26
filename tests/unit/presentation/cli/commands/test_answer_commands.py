@@ -9,7 +9,11 @@ import pytest
 from jaap.application.exceptions import ProfileNotFoundError
 from jaap.domain.models import Profile, new_answer_id, new_profile_id
 from jaap.infrastructure.config.settings import Settings
-from jaap.presentation.cli.commands.answer_commands import _handle_list, _handle_save
+from jaap.presentation.cli.commands.answer_commands import (
+    _handle_generate,
+    _handle_list,
+    _handle_save,
+)
 from jaap.presentation.cli.main import Context
 from tests.unit.application.use_cases.fakes import (
     FakeAnswerRepository,
@@ -127,3 +131,18 @@ def test_handle_list_truncates_long_answer_text_for_display(capsys) -> None:
     output = capsys.readouterr().out
     assert "..." in output
     assert long_text not in output
+
+
+def test_handle_generate_raises_profile_not_found_before_calling_claude() -> None:
+    # _handle_generate constructs a real ClaudeProvider internally (same
+    # composition-root-style pattern as _handle_review/_handle_generate
+    # in cover_letter_commands.py), so it can't be fully unit-tested with
+    # fakes -- but the profile lookup happens BEFORE any AI call, so this
+    # specific path is fast and fake-testable.
+    context = _make_context()
+    args = argparse.Namespace(
+        profile_id=new_profile_id(), question="Why do you want to work here?", save_as=None
+    )
+
+    with pytest.raises(ProfileNotFoundError):
+        _handle_generate(args, context)

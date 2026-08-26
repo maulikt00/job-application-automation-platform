@@ -1,4 +1,4 @@
-"""CLI commands for Answer: `jaap answer save|list`.
+"""CLI commands for Answer: `jaap answer save|list|generate`.
 
 Added after a real gap was noticed (not part of any milestone's original
 scope): SaveAnswerUseCase has existed since Milestone 6, but nothing in
@@ -7,6 +7,11 @@ calling the use case directly in Python. `list` is included alongside
 `save`, not just requested: seeing what's already been saved is directly
 useful before relying on ExactFieldMatcher's exact question_key matching
 to autofill anything.
+
+`generate` (Milestone 17) mirrors `cover-letter generate`'s shape exactly
+(ClaudeProvider constructed directly, always shown for review,
+`--save-as` optionally saves in the same command) -- see
+docs/adr/0018-ai-generated-answers.md.
 """
 
 from __future__ import annotations
@@ -15,8 +20,10 @@ import argparse
 import uuid
 from typing import TYPE_CHECKING
 
+from jaap.application.use_cases.generate_answer import GenerateAnswerUseCase
 from jaap.application.use_cases.manage_answers import SaveAnswerUseCase
 from jaap.domain.models import AnswerId, ProfileId
+from jaap.infrastructure.ai.claude_provider import ClaudeProvider
 
 if TYPE_CHECKING:
     from jaap.presentation.cli.main import Context
@@ -53,6 +60,29 @@ def register(subparsers: argparse._SubParsersAction) -> None:
     list_parser.add_argument("--profile-id", required=True, type=uuid.UUID)
     list_parser.set_defaults(handler=_handle_list)
 
+    generate_parser = answer_subparsers.add_parser(
+        "generate",
+        help=(
+            "Draft a reusable answer with Claude. Always shown for review; "
+            "--save-as optionally saves it as a new answer in the same command. "
+            "Deliberately company-agnostic -- see ADR-0018 for why."
+        ),
+    )
+    generate_parser.add_argument("--profile-id", required=True, type=uuid.UUID)
+    generate_parser.add_argument(
+        "--question", required=True, help="The application question to draft an answer for."
+    )
+    generate_parser.add_argument(
+        "--save-as",
+        default=None,
+        help=(
+            "Question key to save under if provided. Pass the same text as "
+            "--question to save under its auto-normalized slug (see "
+            "Answer.question_key's own validator)."
+        ),
+    )
+    generate_parser.set_defaults(handler=_handle_generate)
+
 
 def _handle_save(args: argparse.Namespace, context: Context) -> int:
     use_case = SaveAnswerUseCase(context.answer_repository, context.profile_repository)
@@ -80,4 +110,36 @@ def _handle_list(args: argparse.Namespace, context: Context) -> int:
             answer.answer_text[:57] + "..."
         )
         print(f"{answer.id}  question_key={answer.question_key!r}  text={preview!r}")
+    return 0
+
+
+def _handle_generate(args: argparse.Namespace, context: Context) -> int:
+    ai_provider = ClaudeProvider(context.settings)
+    use_case = GenerateAnswerUseCase(
+        ai_provider=ai_provider,
+        profile_repository=context.profile_repository,
+        answer_repository=context.answer_repository,
+    )
+    generated_text = use_case.execute(
+        profile_id=ProfileId(args.profile_id), question=args.question
+    )
+
+    print("Generated answer (review before use):")
+    print()
+    print(generated_text)
+    print()
+
+    if args.save_as:
+        save_use_case = SaveAnswerUseCase(context.answer_repository, context.profile_repository)
+        answer = save_use_case.execute(
+            profile_id=ProfileId(args.profile_id),
+            question_key=args.save_as,
+            answer_text=generated_text,
+        )
+        print(f"Saved as answer {answer.id} (question_key={answer.question_key!r}).")
+    else:
+        print(
+            "Not saved. Re-run with --save-as <question> to save it as a reusable "
+            "answer (pass the same text as --question to key it consistently)."
+        )
     return 0
