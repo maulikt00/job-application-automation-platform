@@ -23,8 +23,11 @@ python-dotenv>=1.0,<2.0
 # and a newer version is verified not to reintroduce it.
 playwright==1.56.0
 
-# --- Phase 3: AI providers (added when Phase 3 begins) ---
-# anthropic>=0.30,<1.0
+# --- Phase 3: AI providers ---
+# NOTE: pinned tightly, not a version range -- see requirements.txt's
+# playwright note and ADR-0008 for why a wide range bit this project
+# once already. Re-verify with a clean-venv check before loosening this.
+anthropic==1.0.0
 # ollama>=0.3,<1.0
 
 # --- Future: FastAPI / NiceGUI (Phase 5) ---
