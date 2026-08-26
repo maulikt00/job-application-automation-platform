@@ -254,9 +254,16 @@ discipline applied before Phase 3. Both complete:
 **Goal:** support real job platforms without modifying existing, working
 code — adding a platform means adding a connector.
 
-- ⬜ **M19 — `WebsiteConnector` interface**: abstract contract
-  (detect current platform, locate apply flow, map fields) in
-  `application/interfaces/`.
+- ✅ **M19 — `WebsiteConnector` interface**: `platform_name`/`matches()`
+  ("detect current platform"), `navigate_to_application_form()`
+  ("locate apply flow"), `get_field_detector()` ("map fields" via
+  selecting/providing a `FormFieldDetector`, not duplicating it).
+  `BrowserAutomationEngine` gained `click()` -- confirmed explicitly
+  with the project owner beforehand that a generic navigation click
+  primitive is not a reopening of the "no automatic submission"
+  boundary (ADR-0001/0012); connectors must never use it on a final
+  submit control. No implementation yet (M20-22); deliberately minimal
+  testable surface, matching M13's `AIProvider`. See ADR-0020.
 - ⬜ **M20 — `GreenhouseConnector`**
 - ⬜ **M21 — `LeverConnector`**
 - ⬜ **M22 — `WorkdayConnector`**
