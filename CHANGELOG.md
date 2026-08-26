@@ -9,6 +9,17 @@ which it will move to [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- `docs/adr/0014-ai-provider-interface.md`: the design decisions behind
+  Milestone 13 (Phase 3's opening milestone) -- one generic
+  `generate_text()` primitive rather than per-feature methods,
+  `system_prompt` included now since both planned implementations
+  support it, model selection deferred to each provider's constructor,
+  and exception translation/fake test doubles deferred until a real
+  consumer exists (Milestone 16+).
+- `AIProvider` Protocol interface (`application/interfaces/ai_provider.py`):
+  `generate_text(prompt, *, system_prompt=None) -> str`. No concrete
+  implementation yet (`ClaudeProvider`/`OllamaProvider` are Milestone
+  14/15); verified well-formed via a throwaway Protocol-conformance stub.
 - `docs/adr/0013-submitted-content-snapshot.md`: durable, immutable
   evidence of what was actually submitted with an `Application` --
   resolves a gap flagged since the Milestone 2 review, formally deferred
