@@ -9,6 +9,24 @@ which it will move to [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- `docs/adr/0020-website-connector-interface.md`: the design decisions
+  behind Milestone 19 (Phase 4's opening milestone), including the
+  explicitly-confirmed `click()` safety boundary and why
+  `get_field_detector()` selects a `FormFieldDetector` rather than
+  duplicating its responsibility.
+- `BrowserAutomationEngine.click(selector)`: a generic navigation
+  primitive, added specifically for Phase 4's connectors (clicking
+  "Apply"/"Next" buttons) -- explicitly confirmed with the project
+  owner beforehand that this is not a reopening of the "no automatic
+  submission" boundary (ADR-0001/0012). `WebsiteConnector` implementations
+  must never use it on a final submit control.
+- `WebsiteConnector` Protocol interface
+  (`application/interfaces/website_connector.py`): `platform_name`,
+  `matches(url)`, `navigate_to_application_form(engine)`,
+  `get_field_detector(engine)`. No concrete implementation yet
+  (`GreenhouseConnector`/`LeverConnector`/`WorkdayConnector` are
+  Milestone 20/21/22); verified well-formed via a throwaway
+  Protocol-conformance stub, matching Milestone 13's `AIProvider` pattern.
 - `presentation/cli/ai_provider_factory.py`: `build_ai_provider(provider_name, settings)`,
   extracted before Phase 4 began (a lead-engineer review found three
   CLI commands each hardcoding `ClaudeProvider` directly, with no way
