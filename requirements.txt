@@ -28,7 +28,7 @@ playwright==1.56.0
 # playwright note and ADR-0008 for why a wide range bit this project
 # once already. Re-verify with a clean-venv check before loosening this.
 anthropic==1.0.0
-# ollama>=0.3,<1.0
+ollama==0.6.2
 
 # --- Future: FastAPI / NiceGUI (Phase 5) ---
 # fastapi>=0.111,<1.0

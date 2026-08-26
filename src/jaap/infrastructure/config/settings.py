@@ -70,6 +70,26 @@ class Settings(BaseSettings):
             text (Milestone 16/17's actual use); adjust via
             JAAP_ANTHROPIC_MAX_TOKENS if a future use case needs more.
         ollama_host: Base URL for a local Ollama server (Phase 3).
+        ollama_model: Which model OllamaProvider uses (Milestone 15).
+            Defaults to "llama3.1" -- unlike anthropic_model, this is NOT
+            verified against an official hosted-API model list, because
+            Ollama has none: models are local and must be pulled by the
+            user (`ollama pull llama3.1`) before this will work at all.
+            "llama3.1" was chosen by cross-referencing multiple
+            independent sources on Ollama's library popularity (checked
+            2026-08-25), including a citation of Ollama's own pull-count
+            data directly from ollama.com/library (118.6M pulls, the most
+            of any model family at the time) -- the most commonly used
+            "start here" default, not an official canonical choice the
+            way Claude's model is. If you change this, run
+            `ollama pull <model>` yourself first and confirm with
+            `ollama list` that it's actually available locally.
+        ollama_max_tokens: Max tokens per Ollama response (Milestone 15).
+            Mapped internally to Ollama's `options.num_predict`, which is
+            where Ollama's chat API represents this (it has no top-level
+            `max_tokens` parameter, unlike Anthropic's API). 1024 is a
+            reasonable default for cover-letter/answer-length text,
+            matching anthropic_max_tokens's own reasoning.
         headless: Whether Playwright launches Chromium headless (Phase 2).
             Defaults to True; set to False locally to watch the browser
             interactively while developing/debugging.
@@ -99,6 +119,10 @@ class Settings(BaseSettings):
     )
     ollama_host: str = Field(
         default="http://localhost:11434", validation_alias="OLLAMA_HOST"
+    )
+    ollama_model: str = Field(default="llama3.1", validation_alias="JAAP_OLLAMA_MODEL")
+    ollama_max_tokens: int = Field(
+        default=1024, validation_alias="JAAP_OLLAMA_MAX_TOKENS"
     )
     headless: bool = Field(default=True, validation_alias="JAAP_HEADLESS")
 

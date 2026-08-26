@@ -9,6 +9,20 @@ which it will move to [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- `docs/adr/0016-ollama-provider.md`: the design decisions behind
+  Milestone 15, including the real structural differences from
+  Anthropic's API found by inspecting the actually-installed `ollama`
+  package (no `system` parameter -- translated into a `role="system"`
+  message instead; `max_tokens` maps to `options.num_predict`; no API
+  key needed) that together confirm `AIProvider` genuinely generalizes.
+- `OllamaProvider` (`infrastructure/ai/ollama_provider.py`): the second
+  concrete `AIProvider` implementation. Same constructor-injection
+  testability pattern as `ClaudeProvider` -- no real Ollama server
+  required anywhere in the test suite.
+- `Settings.ollama_model` (default `"llama3.1"`, chosen from Ollama
+  library popularity data since -- unlike Claude -- there's no official
+  hosted-API model list to check) and `Settings.ollama_max_tokens`
+  (default `1024`).
 - `docs/adr/0015-claude-provider.md`: the design decisions behind
   Milestone 14, including two real bugs caught by mypy during
   development (the SDK's `Omit` vs `NotGiven` sentinel distinction, and
