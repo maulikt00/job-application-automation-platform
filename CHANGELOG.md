@@ -9,6 +9,13 @@ which it will move to [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- `presentation/cli/ai_provider_factory.py`: `build_ai_provider(provider_name, settings)`,
+  extracted before Phase 4 began (a lead-engineer review found three
+  CLI commands each hardcoding `ClaudeProvider` directly, with no way
+  to choose `OllamaProvider` despite Milestone 15 proving the interface
+  supports it). `jaap cover-letter generate`, `jaap answer generate`,
+  and `jaap resume recommend` all gained `--provider claude|ollama`
+  (default `claude`), validated by argparse's own `choices=`.
 - `docs/adr/0019-resume-recommendation.md`: the design decisions behind
   Milestone 18 (Phase 3's closing milestone), including why the
   recommendation compares resume labels rather than resume content (no
@@ -419,6 +426,15 @@ which it will move to [Semantic Versioning](https://semver.org/).
 
 ### Changed
 
+- `ARCHITECTURE.md` updated again to reflect all of Phase 3 (it had
+  drifted stale a second time -- last updated just *before* Phase 3
+  began, describing `AIProvider`/`ClaudeProvider`/`OllamaProvider`/
+  `GenerateCoverLetterUseCase`/etc. as "not yet defined"/"planned" even
+  though all of it was built, tested, and merged). Now documents the
+  real `AIProvider` consumer pattern (three use cases sharing the same
+  shape), the resolved `AIProviderError` translation, and a second real
+  worked-example data flow (AI-generated content) alongside the
+  existing autofill/review one.
 - `ARCHITECTURE.md` fully rewritten to accurately describe the
   architecture as it actually exists (through this pre-Phase-3 cleanup),
   explicitly distinguishing built functionality from Phase 3/4/5 planned
