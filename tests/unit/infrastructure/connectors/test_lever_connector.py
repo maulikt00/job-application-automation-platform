@@ -26,10 +26,7 @@ from jaap.domain.models.job_posting import JobPlatform
 from jaap.infrastructure.browser.form_field_detector import PlaywrightFormFieldDetector
 from jaap.infrastructure.browser.playwright_engine import PlaywrightBrowserEngine
 from jaap.infrastructure.config.settings import Settings
-from jaap.infrastructure.connectors.lever_connector import (
-    LeverConnector,
-    _append_apply_path,
-)
+from jaap.infrastructure.connectors.lever_connector import LeverConnector
 
 _POSTING_HTML = "<html><body><h1>Account Executive at Acme</h1><p>Description...</p></body></html>"
 _APPLY_FORM_HTML = """
@@ -101,31 +98,6 @@ def test_matches_jobs_eu_lever_co(connector: WebsiteConnector) -> None:
 
 def test_does_not_match_an_unrelated_url(connector: WebsiteConnector) -> None:
     assert connector.matches("https://example.com/careers/12345") is False
-
-
-def test_append_apply_path_appends_to_a_plain_url() -> None:
-    assert (
-        _append_apply_path("https://jobs.lever.co/leverdemo/5ac21346")
-        == "https://jobs.lever.co/leverdemo/5ac21346/apply"
-    )
-
-
-def test_append_apply_path_is_idempotent_when_already_present() -> None:
-    url = "https://jobs.lever.co/leverdemo/5ac21346/apply"
-    assert _append_apply_path(url) == url
-
-
-def test_append_apply_path_preserves_query_strings() -> None:
-    assert _append_apply_path(
-        "https://jobs.lever.co/leverdemo/5ac21346?lever-source=LinkedIn"
-    ) == "https://jobs.lever.co/leverdemo/5ac21346/apply?lever-source=LinkedIn"
-
-
-def test_append_apply_path_handles_a_trailing_slash() -> None:
-    assert (
-        _append_apply_path("https://jobs.lever.co/leverdemo/5ac21346/")
-        == "https://jobs.lever.co/leverdemo/5ac21346/apply"
-    )
 
 
 def test_navigate_to_application_form_moves_to_the_apply_url(

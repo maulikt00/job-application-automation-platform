@@ -46,12 +46,11 @@ separate feature this project has not built.
 
 from __future__ import annotations
 
-from urllib.parse import urlsplit, urlunsplit
-
 from jaap.application.interfaces.browser_engine import BrowserAutomationEngine
 from jaap.application.interfaces.form_field_detector import FormFieldDetector
 from jaap.domain.models.job_posting import JobPlatform
 from jaap.infrastructure.browser.form_field_detector import PlaywrightFormFieldDetector
+from jaap.infrastructure.connectors._url_utils import append_apply_path
 
 
 class LeverConnector:
@@ -75,7 +74,7 @@ class LeverConnector:
         than a specific, unconfirmed field name).
         """
         current_url = engine.evaluate("window.location.href")
-        apply_url = _append_apply_path(current_url)
+        apply_url = append_apply_path(current_url)
         if apply_url != current_url:
             engine.navigate(apply_url)
 
@@ -92,17 +91,3 @@ class LeverConnector:
         # indication of custom, non-native widgets -- the generic
         # detector is used unchanged, same reasoning as GreenhouseConnector.
         return PlaywrightFormFieldDetector(engine)
-
-
-def _append_apply_path(url: str) -> str:
-    """Appends `/apply` to `url`'s path, preserving any query string and
-    handling a trailing slash or an already-present `/apply` suffix
-    idempotently. A pure function, verified directly against Lever's own
-    documented URL examples (including a query-string case) before being
-    relied on.
-    """
-    parts = urlsplit(url)
-    path = parts.path.rstrip("/")
-    if path.endswith("/apply"):
-        return url
-    return urlunsplit((parts.scheme, parts.netloc, path + "/apply", parts.query, parts.fragment))

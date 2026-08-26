@@ -288,7 +288,23 @@ code — adding a platform means adding a connector.
   Greenhouse, for the same reason. Verified against real Chromium and a
   real local HTTP server (not `file://` URLs, which can't replicate
   Lever's extension-less directory-style routes). See ADR-0022.
-- ⬜ **M22 — `WorkdayConnector`**
+- ✅ **M22 — `WorkdayConnector`**: the third concrete `WebsiteConnector`
+  -- the one that directly addresses the custom-widget limitation that
+  motivated Phase 4's existence. Two real domain families confirmed
+  (`myworkdayjobs.com`, `myworkdaysite.com`), and a `/apply`-suffix URL
+  pattern confirmed independently for a *second* platform (Lever being
+  the first) -- the path-appending logic was extracted into a shared
+  `_url_utils.py` and `LeverConnector` updated to use it too.
+  `WorkdayFormFieldDetector` composes the generic detector and adds
+  detection of ARIA `role="combobox"` custom dropdowns, with an
+  explicitly *lower*, stated confidence level than Greenhouse/Lever's
+  confirmed selectors (general ARIA/automation-community knowledge, not
+  primary-source Workday documentation). Every detected combobox has
+  `selector=None`, guaranteeing (verified directly) it can never be
+  automatically matched or filled -- surfaced only as a visible
+  "unmatched field." Actually filling a combobox remains real, named,
+  unbuilt future work (`AutofillApplicationUseCase` has no dispatch
+  branch for it yet). See ADR-0023. **This completes Phase 4's connectors.**
 - ⬜ **M23 — End-to-end application flow**: profile + resume + AI cover
   letter + connector + human review, exercised against a real (test)
   posting on each supported platform.
