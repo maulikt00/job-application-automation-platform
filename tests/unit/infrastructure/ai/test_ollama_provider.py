@@ -13,6 +13,7 @@ import ollama
 import pytest
 from ollama._types import ChatResponse, Message
 
+from jaap.domain.exceptions import AIProviderError
 from jaap.infrastructure.ai.ollama_provider import OllamaProvider
 from jaap.infrastructure.config.settings import Settings
 
@@ -102,7 +103,7 @@ def test_raises_a_clear_error_when_response_content_is_none(
     fake_client.chat.return_value = _make_response(None)
     provider = OllamaProvider(settings, client=fake_client)
 
-    with pytest.raises(ValueError, match="no text content"):
+    with pytest.raises(AIProviderError, match="no text content"):
         provider.generate_text("prompt")
 
 
@@ -110,3 +111,27 @@ def test_constructor_builds_a_real_client_when_none_is_injected(settings: Settin
     provider = OllamaProvider(settings)
 
     assert isinstance(provider._client, ollama.Client)
+
+
+def test_request_error_is_translated_to_ai_provider_error(settings: Settings, fake_client) -> None:
+    fake_client.chat.side_effect = ollama.RequestError("bad request")
+    provider = OllamaProvider(settings, client=fake_client)
+
+    with pytest.raises(AIProviderError) as exc_info:
+        provider.generate_text("prompt")
+
+    assert isinstance(exc_info.value.__cause__, ollama.RequestError)
+
+
+def test_response_error_is_translated_to_ai_provider_error(settings: Settings, fake_client) -> None:
+    # RequestError and ResponseError share no common base beyond bare
+    # Exception (verified against the installed SDK) -- both are tested
+    # explicitly here, not just one, since a single shared except clause
+    # (as ClaudeProvider uses) would not have worked for Ollama.
+    fake_client.chat.side_effect = ollama.ResponseError("server error")
+    provider = OllamaProvider(settings, client=fake_client)
+
+    with pytest.raises(AIProviderError) as exc_info:
+        provider.generate_text("prompt")
+
+    assert isinstance(exc_info.value.__cause__, ollama.ResponseError)

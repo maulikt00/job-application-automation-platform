@@ -78,3 +78,22 @@ class BrowserAutomationError(DomainError):
     AutofillApplicationUseCase is that consumer.
     """
 
+
+class AIProviderError(DomainError):
+    """Raised when a call to an AIProvider implementation fails.
+
+    Same reasoning as BrowserAutomationError: ClaudeProvider and
+    OllamaProvider each catch their own underlying SDK's exceptions
+    (which are entirely different types between the two -- Anthropic's
+    SDK shares one common base, `anthropic.AnthropicError`, while
+    Ollama's `RequestError`/`ResponseError` share no common base beyond
+    bare `Exception`, verified by inspecting both installed SDKs
+    directly) and re-raise this instead, via exception chaining. This
+    was deliberately deferred in ADR-0014/0015/0016 until there was a
+    real use-case-level consumer to design the translation against --
+    Milestone 16's GenerateCoverLetterUseCase is that consumer. Without
+    this, a use case depending on AIProvider would need to know whether
+    it's calling Claude or Ollama underneath just to catch errors
+    correctly, defeating the point of the interface.
+    """
+
