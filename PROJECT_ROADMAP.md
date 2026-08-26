@@ -217,8 +217,16 @@ to create one without calling the use case directly in Python.
   `cover-letter generate`'s shape; passing the same text for both
   `--question` and `--save-as` produces a `question_key` verified to
   exactly match what `ExactFieldMatcher` computes later. See ADR-0018.
-- ⬜ **M18 — Resume recommendation**: suggest which stored resume best
-  fits a given job posting.
+- ✅ **M18 — Resume recommendation**: `RecommendResumeUseCase`, the
+  third real `AIProvider` consumer. Honestly scoped: compares resume
+  *labels* against job title/company only (no resume-text-extraction
+  exists in this project), stated in both the code and the AI's own
+  system prompt. Zero/one-resume cases never call the AI at all. A
+  strict response format (chosen option's number, then reasoning) is
+  parsed deterministically, with malformed or out-of-range responses
+  raising a clear `ValueError`. `jaap resume recommend` is read-only --
+  nothing to save, just a pointer at an existing `Resume` plus
+  reasoning. See ADR-0019. **This completes Phase 3.**
 
 ## Phase 4 — Website Connectors
 
