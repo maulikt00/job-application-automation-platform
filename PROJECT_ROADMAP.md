@@ -168,7 +168,14 @@ without AI ever touching browser automation.
   for `BrowserAutomationEngine`, applied here (see ADR-0014). No
   implementation yet (M14/15), no consumer yet (M16-18); deliberately
   minimal testable surface for a milestone that's just an interface.
-- ⬜ **M14 — `ClaudeProvider`**: first concrete implementation.
+- ✅ **M14 — `ClaudeProvider`**: first concrete implementation, built
+  against the actually-installed `anthropic` SDK (inspected directly,
+  not assumed) -- catching two real bugs via mypy along the way (wrong
+  "not given" sentinel type; unsafe indexing into a union-typed response
+  content list). Pinned tightly (`anthropic==1.0.0`), following ADR-0008's
+  lesson. No exception translation yet, mirroring the exact precedent
+  set by `BrowserAutomationEngine` (deferred from its own first
+  milestone to its first real use-case consumer). See ADR-0015.
 - ⬜ **M15 — `OllamaProvider`**: second concrete implementation, proving
   the interface generalizes to a local model with no use-case changes.
 - ⬜ **M16 — AI-generated cover letters**: `GenerateCoverLetterUseCase`

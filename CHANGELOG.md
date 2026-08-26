@@ -9,6 +9,27 @@ which it will move to [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- `docs/adr/0015-claude-provider.md`: the design decisions behind
+  Milestone 14, including two real bugs caught by mypy during
+  development (the SDK's `Omit` vs `NotGiven` sentinel distinction, and
+  `response.content`'s union-typed block list) -- found by inspecting
+  the actually-installed `anthropic` SDK directly, not assumed correct.
+- `ClaudeProvider` (`infrastructure/ai/claude_provider.py`): the first
+  concrete `AIProvider` implementation. Constructor accepts an optional
+  `client` parameter (defaulting to a real `anthropic.Anthropic`
+  instance), making every test injectable with a hand-built fake -- no
+  real API call, no network access, no cost anywhere in the test suite.
+- `Settings.anthropic_model` (default `"claude-sonnet-5"`) and
+  `Settings.anthropic_max_tokens` (default `1024`). The model default was
+  verified directly against Anthropic's own official documentation
+  (`platform.claude.com/docs`), not just the installed SDK's type stubs
+  -- a third-party blog covering the same model was found reporting the
+  wrong API identifier during this verification, a concrete reminder to
+  trust Anthropic's own docs over aggregator content. A documented
+  upgrade procedure (which docs to re-check, how to re-verify) lives in
+  both `Settings.anthropic_model`'s docstring and ADR-0015, so this
+  default is revalidated deliberately when it's eventually changed,
+  not left stale.
 - `docs/adr/0014-ai-provider-interface.md`: the design decisions behind
   Milestone 13 (Phase 3's opening milestone) -- one generic
   `generate_text()` primitive rather than per-feature methods,
@@ -272,6 +293,16 @@ which it will move to [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- `infrastructure/ai/claude_provider.py`: two real bugs caught by mypy
+  during development, before either could reach a real API call. (1)
+  Used `anthropic.NOT_GIVEN` for the optional `system` parameter; the
+  SDK's `system` parameter specifically expects the distinct `Omit`
+  sentinel, not `NotGiven` -- fixed to use `anthropic.omit`. (2)
+  Originally indexed `response.content[0].text` directly;
+  `Message.content` is a union of many possible block types (`TextBlock`,
+  `ThinkingBlock`, `ToolUseBlock`, and others), not always plain text --
+  fixed to filter for `TextBlock` instances specifically, concatenate
+  their text, and raise a clear error if none are present.
 - `application/interfaces/browser_engine.py`: `BrowserAutomationEngine.__exit__`'s
   Protocol signature changed from a loose `*exc_info: object` to the
   precise `(exc_type, exc_value, traceback)` Python's real context
