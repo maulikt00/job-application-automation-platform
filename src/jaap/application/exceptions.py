@@ -62,6 +62,18 @@ class ResumeNotFoundError(UseCaseError):
         super().__init__(f"No Resume found with id {resume_id}.")
 
 
+class NoResumesAvailableError(UseCaseError):
+    """Raised when a use case needs at least one Resume to work with, but
+    the given Profile has none saved. Distinct from ResumeNotFoundError,
+    which is about a specific ResumeId not resolving -- this is about
+    there being nothing to choose from at all (Milestone 18's
+    RecommendResumeUseCase)."""
+
+    def __init__(self, profile_id: ProfileId) -> None:
+        self.profile_id = profile_id
+        super().__init__(f"Profile {profile_id} has no saved resumes to recommend from.")
+
+
 class AnswerNotFoundError(UseCaseError):
     """Raised when a use case is given an AnswerId that doesn't resolve
     to an existing Answer.
