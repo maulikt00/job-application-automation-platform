@@ -9,6 +9,30 @@ which it will move to [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- `docs/adr/0017-ai-generated-cover-letters.md`: the design decisions
+  behind Milestone 16, including the resolved (three-times-deferred)
+  exception translation, the real asymmetry found between Anthropic's
+  and Ollama's exception hierarchies, and an honest, stated limitation
+  (no resume-text-extraction exists in this project, so generated
+  drafts cannot reference actual work history).
+- `AIProviderError` (`domain/exceptions.py`): both `ClaudeProvider` and
+  `OllamaProvider` now translate their SDK's own exceptions into this,
+  via exception chaining -- resolving the deferral from ADR-0014/0015/0016.
+- `GenerateCoverLetterUseCase` (`application/use_cases/generate_cover_letter.py`):
+  the first real use-case consumer of `AIProvider`. Builds a prompt from
+  Profile + JobPosting (+ optional existing CoverLetterTemplate), returns
+  the generated text as a plain `str`. Never saves anything itself.
+- `jaap cover-letter generate` CLI command, with optional `--save-as`
+  (shown then optionally saved in the same command, per explicit
+  confirmation). Constructs a real `ClaudeProvider` -- the first CLI
+  command to do so.
+- `jaap application submit --cover-letter-text-override`: a second real
+  gap found and fixed while writing this milestone's CLI guidance --
+  `SubmitApplicationUseCase` has supported this parameter since
+  ADR-0013, but the CLI never exposed it. Verified genuinely
+  end-to-end: a full CLI run followed by querying the resulting
+  database confirmed the override text landed correctly in the
+  `SubmittedContentSnapshot`.
 - `jaap answer save/list` and `jaap cover-letter save/list` CLI commands
   (`presentation/cli/commands/answer_commands.py`,
   `cover_letter_commands.py`). `SaveAnswerUseCase`/
