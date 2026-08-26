@@ -43,6 +43,20 @@ failure ("waiting for locator" with no mention that the file doesn't
 exist) rather than a fast, clear one -- see
 docs/adr/0011-resume-upload.md.
 
+`click()` (added Milestone 19) is the fifth: clicking any element. Added
+specifically because Phase 4's `WebsiteConnector` implementations need
+to navigate multi-step application flows (e.g. clicking an "Apply Now"
+button, or "Continue" in a wizard) -- this is a generic, structural
+capability, the same category as `fill()`/`check()`, NOT a reopening of
+the "no submit" boundary established in ADR-0001/0012. That boundary is
+specifically about there being no code path that submits a completed
+application without human review; a generic click primitive existing
+does not by itself create such a path. `WebsiteConnector` implementations
+(Milestone 20+) must never use `click()` to activate a final submission
+control -- see docs/adr/0020-website-connector-interface.md for the full
+reasoning, which was confirmed explicitly before this method was added,
+not assumed.
+
 Exception translation (deferred in ADR-0008/0009 until there was a
 concrete consumer): every operational method here can raise
 `jaap.domain.exceptions.BrowserAutomationError` if the underlying
@@ -112,6 +126,17 @@ class BrowserAutomationEngine(Protocol):
         into the underlying browser library and raise
         BrowserAutomationError immediately if it doesn't -- see this
         module's docstring for why.
+        """
+        ...
+
+    def click(self, selector: str) -> None:
+        """Click the element matching `selector`.
+
+        A generic navigation primitive -- clicking an "Apply" or "Next"
+        button as part of moving through an application flow. Must
+        NEVER be used to activate a final submission control; see this
+        module's docstring for why this is not a reopening of the
+        established "no automatic submission" boundary.
         """
         ...
 

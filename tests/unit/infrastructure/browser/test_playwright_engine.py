@@ -145,6 +145,8 @@ _FORM_PAGE = (
     '<input id="t" type="text">'
     '<input id="c" type="checkbox">'
     '<select id="s"><option value="a">A</option><option value="b">B</option></select>'
+    '<button id="apply" onclick="document.getElementById(\'result\').textContent=\'clicked\'">Apply</button>'
+    '<div id="result"></div>'
     '</body></html>'
 )
 
@@ -265,3 +267,35 @@ def test_upload_file_before_launch_raises_runtime_error(settings: Settings, tmp_
 
     with pytest.raises(RuntimeError, match="launch"):
         engine.upload_file("#f", resume)
+
+
+def test_click_activates_the_clicked_elements_handler(settings: Settings) -> None:
+    with PlaywrightBrowserEngine(settings) as engine:
+        engine.navigate(_FORM_PAGE)
+        engine.click("#apply")
+        assert engine.evaluate("document.getElementById('result').textContent") == "clicked"
+
+
+def test_click_before_launch_raises_runtime_error(settings: Settings) -> None:
+    engine = PlaywrightBrowserEngine(settings)
+
+    with pytest.raises(RuntimeError, match="launch"):
+        engine.click("#apply")
+
+
+def test_click_with_a_malformed_selector_raises_browser_automation_error(
+    settings: Settings,
+) -> None:
+    # A malformed CSS selector is the fastest reliable trigger found for
+    # click() specifically: unlike check()/select_option(), click() has
+    # no "wrong element type" fast-fail path (it can be called on nearly
+    # any element), and a missing selector waits the full ~30s
+    # actionability timeout. A syntactically invalid selector fails
+    # during parsing, before any actionability wait begins -- still not
+    # sub-second (~10s), but far better than the alternative, and a
+    # genuine, real failure mode worth having a regression test for.
+    with PlaywrightBrowserEngine(settings) as engine:
+        engine.navigate(_FORM_PAGE)
+        with pytest.raises(BrowserAutomationError) as exc_info:
+            engine.click(":::invalid-selector:::")
+        assert exc_info.value.__cause__ is not None

@@ -130,6 +130,12 @@ class PlaywrightBrowserEngine:
                 f"Failed to upload {file_path} to {selector!r}: {exc}"
             ) from exc
 
+    def click(self, selector: str) -> None:
+        try:
+            self._require_page().click(selector)
+        except PlaywrightError as exc:
+            raise BrowserAutomationError(f"Failed to click {selector!r}: {exc}") from exc
+
     def screenshot(self, path: Path) -> None:
         try:
             path.parent.mkdir(parents=True, exist_ok=True)
