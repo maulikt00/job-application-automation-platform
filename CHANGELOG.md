@@ -9,6 +9,23 @@ which it will move to [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- `docs/adr/0019-resume-recommendation.md`: the design decisions behind
+  Milestone 18 (Phase 3's closing milestone), including why the
+  recommendation compares resume labels rather than resume content (no
+  resume-text-extraction exists in this project) and the strict
+  response-format parsing strategy needed since `AIProvider` exposes
+  only one generic `generate_text()` primitive.
+- `NoResumesAvailableError` (`application/exceptions.py`): raised when a
+  Profile has zero saved resumes to recommend from.
+- `RecommendResumeUseCase` (`application/use_cases/recommend_resume.py`)
+  + `ResumeRecommendation`: the third real use-case consumer of
+  `AIProvider`. Zero/one-resume cases never call the AI. Multi-resume
+  cases require a strict, minimal AI response format, parsed
+  deterministically; malformed or out-of-range responses raise a clear
+  `ValueError`.
+- `jaap resume recommend` CLI command -- read-only, prints the
+  recommended resume and reasoning, with an explicit reminder that the
+  recommendation is label-based, not content-based.
 - `docs/adr/0018-ai-generated-answers.md`: the design decisions behind
   Milestone 17, including the deliberate decision to omit
   `job_posting_id` (unlike Milestone 16's cover letters) so generated

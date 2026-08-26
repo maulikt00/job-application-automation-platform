@@ -27,11 +27,14 @@ becoming unmaintainable.
 ## Status
 
 🚧 Active development. See [PROJECT_ROADMAP.md](PROJECT_ROADMAP.md) for the
-full milestone breakdown. **Phase 1 (Core Domain & Data)** and **Phase 2
-(Browser Automation)** are complete: domain models, configuration/logging,
-the SQLite database layer, all six repositories, core use cases, a CLI,
-and browser automation through form detection, autofill, resume upload,
-and the human review gate. **Phase 3 (AI Integration)** is next.
+full milestone breakdown. **Phase 1 (Core Domain & Data)**, **Phase 2
+(Browser Automation)**, and **Phase 3 (AI Integration)** are complete:
+domain models, configuration/logging, the SQLite database layer, all six
+repositories, core use cases, a CLI, browser automation through form
+detection, autofill, resume upload, and the human review gate, plus two
+AI providers (Claude, Ollama) powering AI-generated cover letters,
+application answers, and resume recommendations. **Phase 4 (Website
+Connectors)** is next.
 
 ## Architecture
 
@@ -54,9 +57,10 @@ See [PROJECT_ROADMAP.md](PROJECT_ROADMAP.md) for the milestone-level breakdown.
 
 ## Getting Started
 
-> Phases 1 and 2 are complete: domain models through the CLI, plus
-> browser automation from field detection through the human review
-> gate. Phase 3 (AI integration) is next.
+> Phases 1, 2, and 3 are complete: domain models through the CLI, browser
+> automation from field detection through the human review gate, and AI
+> integration (Claude, Ollama, AI-generated content). Phase 4 (website
+> connectors) is next.
 
 ```bash
 python -m venv .venv
@@ -74,15 +78,15 @@ python -m playwright install chromium
 pytest tests/unit -v
 ```
 
-307 tests, covering domain models, configuration/logging, the database
+318 tests, covering domain models, configuration/logging, the database
 layer, all six repositories, core use cases, the CLI, browser automation
 including form field detection/autofill/resume upload/the human review
 gate (run against a real headless Chromium instance and a real local
 HTTP server, not mocks), the submitted content snapshot, automated
 architecture-boundary enforcement, two AI providers (`ClaudeProvider`,
 `OllamaProvider`, each tested against their real SDK's response shape
-via a fake client, no real API calls), and AI-generated cover letters
-and application answers.
+via a fake client, no real API calls), and AI-generated cover letters,
+application answers, and resume recommendations.
 
 ## Tech Stack
 
