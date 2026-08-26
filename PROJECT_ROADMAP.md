@@ -162,8 +162,12 @@ compound further. All four are complete:
 **Goal:** add AI assistance for content generation and decision support,
 without AI ever touching browser automation.
 
-- ⬜ **M13 — `AIProvider` interface**: abstract contract
-  (`generate_text`, and related methods) in `application/interfaces/`.
+- ✅ **M13 — `AIProvider` interface**: `Protocol`-based, one generic
+  primitive (`generate_text(prompt, *, system_prompt=None) -> str`),
+  never one method per feature -- the same lesson ADR-0009 established
+  for `BrowserAutomationEngine`, applied here (see ADR-0014). No
+  implementation yet (M14/15), no consumer yet (M16-18); deliberately
+  minimal testable surface for a milestone that's just an interface.
 - ⬜ **M14 — `ClaudeProvider`**: first concrete implementation.
 - ⬜ **M15 — `OllamaProvider`**: second concrete implementation, proving
   the interface generalizes to a local model with no use-case changes.
