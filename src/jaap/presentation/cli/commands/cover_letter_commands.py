@@ -5,12 +5,13 @@ has existed since Milestone 6 with no CLI exposure until now. Named
 "cover-letter" in the CLI (not "cover-letter-template") for brevity at
 the command line; the underlying domain concept remains CoverLetterTemplate.
 
-`generate` (Milestone 16) is the first CLI command to construct a real
-AIProvider -- ClaudeProvider specifically, matching the stated
-preference for relying mostly on Claude. Always prints the generated
-text for review; `--save-as` is optional and, if given, saves it as a
-new CoverLetterTemplate in the same invocation (the text is still shown
-first, in the same command's output, before saving happens).
+`generate` (Milestone 16) supports `--provider claude|ollama` (default
+claude) via the shared ai_provider_factory -- previously hardcoded to
+ClaudeProvider with no way to choose Ollama, despite Milestone 15
+proving the interface genuinely supports it. Always prints the
+generated text for review; `--save-as` is optional and, if given, saves
+it as a new CoverLetterTemplate in the same invocation (the text is
+still shown first, in the same command's output, before saving happens).
 """
 
 from __future__ import annotations
@@ -24,7 +25,7 @@ from jaap.application.use_cases.manage_cover_letter_templates import (
     SaveCoverLetterTemplateUseCase,
 )
 from jaap.domain.models import CoverLetterTemplateId, JobPostingId, ProfileId
-from jaap.infrastructure.ai.claude_provider import ClaudeProvider
+from jaap.presentation.cli.ai_provider_factory import build_ai_provider
 
 if TYPE_CHECKING:
     from jaap.presentation.cli.main import Context
@@ -67,6 +68,10 @@ def register(subparsers: argparse._SubParsersAction) -> None:
     generate_parser.add_argument("--job-posting-id", required=True, type=uuid.UUID)
     generate_parser.add_argument("--template-id", type=uuid.UUID, default=None)
     generate_parser.add_argument("--save-as", default=None)
+    generate_parser.add_argument(
+        "--provider", choices=["claude", "ollama"], default="claude",
+        help="Which AI provider to use (default: claude).",
+    )
     generate_parser.set_defaults(handler=_handle_generate)
 
 
@@ -97,7 +102,7 @@ def _handle_list(args: argparse.Namespace, context: Context) -> int:
 
 
 def _handle_generate(args: argparse.Namespace, context: Context) -> int:
-    ai_provider = ClaudeProvider(context.settings)
+    ai_provider = build_ai_provider(args.provider, context.settings)
     use_case = GenerateCoverLetterUseCase(
         ai_provider=ai_provider,
         profile_repository=context.profile_repository,

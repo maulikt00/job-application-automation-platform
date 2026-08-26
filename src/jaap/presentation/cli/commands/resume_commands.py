@@ -1,11 +1,12 @@
 """CLI commands for Resume: `jaap resume add|recommend`.
 
-`recommend` (Milestone 18) constructs a real ClaudeProvider directly,
-same composition-root-style pattern as `cover-letter generate`/`answer
-generate`. Its recommendation is based only on each resume's short
-label compared against the job's title/company -- it cannot see any
-resume's actual content (this project has no resume-text-extraction
-capability) -- see docs/adr/0019-resume-recommendation.md.
+`recommend` (Milestone 18) supports `--provider claude|ollama` (default
+claude) via the shared ai_provider_factory, same composition-root-style
+pattern as `cover-letter generate`/`answer generate`. Its recommendation
+is based only on each resume's short label compared against the job's
+title/company -- it cannot see any resume's actual content (this project
+has no resume-text-extraction capability) -- see
+docs/adr/0019-resume-recommendation.md.
 """
 
 from __future__ import annotations
@@ -18,7 +19,7 @@ from typing import TYPE_CHECKING
 from jaap.application.use_cases.manage_resumes import AddResumeUseCase
 from jaap.application.use_cases.recommend_resume import RecommendResumeUseCase
 from jaap.domain.models import JobPostingId, ProfileId
-from jaap.infrastructure.ai.claude_provider import ClaudeProvider
+from jaap.presentation.cli.ai_provider_factory import build_ai_provider
 
 if TYPE_CHECKING:
     from jaap.presentation.cli.main import Context
@@ -43,6 +44,10 @@ def register(subparsers: argparse._SubParsersAction) -> None:
     )
     recommend_parser.add_argument("--profile-id", required=True, type=uuid.UUID)
     recommend_parser.add_argument("--job-posting-id", required=True, type=uuid.UUID)
+    recommend_parser.add_argument(
+        "--provider", choices=["claude", "ollama"], default="claude",
+        help="Which AI provider to use (default: claude).",
+    )
     recommend_parser.set_defaults(handler=_handle_recommend)
 
 
@@ -56,7 +61,7 @@ def _handle_add(args: argparse.Namespace, context: Context) -> int:
 
 
 def _handle_recommend(args: argparse.Namespace, context: Context) -> int:
-    ai_provider = ClaudeProvider(context.settings)
+    ai_provider = build_ai_provider(args.provider, context.settings)
     use_case = RecommendResumeUseCase(
         ai_provider=ai_provider,
         resume_repository=context.resume_repository,

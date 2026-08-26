@@ -64,7 +64,9 @@ def test_handle_recommend_raises_profile_not_found_before_calling_claude() -> No
     # profile/posting lookups happen BEFORE any AI call, so these
     # specific paths are fast and fake-testable.
     context = _make_context()
-    args = argparse.Namespace(profile_id=new_profile_id(), job_posting_id=new_job_posting_id())
+    args = argparse.Namespace(
+        profile_id=new_profile_id(), job_posting_id=new_job_posting_id(), provider="claude"
+    )
 
     with pytest.raises(ProfileNotFoundError):
         _handle_recommend(args, context)
@@ -74,7 +76,9 @@ def test_handle_recommend_raises_job_posting_not_found_before_calling_claude() -
     context = _make_context()
     profile = Profile(id=new_profile_id(), full_name="A", email="a@example.com")
     context.profile_repository.save(profile)
-    args = argparse.Namespace(profile_id=profile.id, job_posting_id=new_job_posting_id())
+    args = argparse.Namespace(
+        profile_id=profile.id, job_posting_id=new_job_posting_id(), provider="claude"
+    )
 
     with pytest.raises(JobPostingNotFoundError):
         _handle_recommend(args, context)

@@ -127,6 +127,7 @@ def test_handle_generate_raises_profile_not_found_before_calling_claude() -> Non
         job_posting_id=new_job_posting_id(),
         template_id=None,
         save_as=None,
+        provider="claude",
     )
 
     with pytest.raises(ProfileNotFoundError):
@@ -142,6 +143,7 @@ def test_handle_generate_raises_job_posting_not_found_before_calling_claude() ->
         job_posting_id=new_job_posting_id(),
         template_id=None,
         save_as=None,
+        provider="claude",
     )
 
     with pytest.raises(JobPostingNotFoundError):

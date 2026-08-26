@@ -9,9 +9,9 @@ useful before relying on ExactFieldMatcher's exact question_key matching
 to autofill anything.
 
 `generate` (Milestone 17) mirrors `cover-letter generate`'s shape exactly
-(ClaudeProvider constructed directly, always shown for review,
-`--save-as` optionally saves in the same command) -- see
-docs/adr/0018-ai-generated-answers.md.
+(supports `--provider claude|ollama` via the shared ai_provider_factory,
+always shown for review, `--save-as` optionally saves in the same command)
+-- see docs/adr/0018-ai-generated-answers.md.
 """
 
 from __future__ import annotations
@@ -23,7 +23,7 @@ from typing import TYPE_CHECKING
 from jaap.application.use_cases.generate_answer import GenerateAnswerUseCase
 from jaap.application.use_cases.manage_answers import SaveAnswerUseCase
 from jaap.domain.models import AnswerId, ProfileId
-from jaap.infrastructure.ai.claude_provider import ClaudeProvider
+from jaap.presentation.cli.ai_provider_factory import build_ai_provider
 
 if TYPE_CHECKING:
     from jaap.presentation.cli.main import Context
@@ -81,6 +81,10 @@ def register(subparsers: argparse._SubParsersAction) -> None:
             "Answer.question_key's own validator)."
         ),
     )
+    generate_parser.add_argument(
+        "--provider", choices=["claude", "ollama"], default="claude",
+        help="Which AI provider to use (default: claude).",
+    )
     generate_parser.set_defaults(handler=_handle_generate)
 
 
@@ -114,7 +118,7 @@ def _handle_list(args: argparse.Namespace, context: Context) -> int:
 
 
 def _handle_generate(args: argparse.Namespace, context: Context) -> int:
-    ai_provider = ClaudeProvider(context.settings)
+    ai_provider = build_ai_provider(args.provider, context.settings)
     use_case = GenerateAnswerUseCase(
         ai_provider=ai_provider,
         profile_repository=context.profile_repository,
