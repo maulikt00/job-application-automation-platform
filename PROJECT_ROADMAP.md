@@ -196,9 +196,17 @@ Directly relevant to autofill in practice: `ExactFieldMatcher` (Milestone
 exists with a matching `question_key`, and there was previously no way
 to create one without calling the use case directly in Python.
 
-- ⬜ **M16 — AI-generated cover letters**: `GenerateCoverLetterUseCase`
-  composing profile + job posting + template into a prompt, with human
-  edit/approval before saving.
+- ✅ **M16 — AI-generated cover letters**: `GenerateCoverLetterUseCase`,
+  the first real use-case consumer of `AIProvider` -- resolving the
+  exception translation deferred three times (M13-15). `ClaudeProvider`/
+  `OllamaProvider` retroactively updated to translate their SDK's
+  exceptions (a real asymmetry found: Anthropic's SDK shares one common
+  base, Ollama's does not) into a shared `AIProviderError`. `jaap
+  cover-letter generate` (with `--save-as`) and a second real gap fixed
+  along the way (`jaap application submit --cover-letter-text-override`,
+  previously missing despite the use case supporting it since ADR-0013).
+  Verified genuinely end-to-end through the real CLI and database. See
+  ADR-0017.
 - ⬜ **M17 — AI-generated application answers**: reusable-answer
   suggestions for free-text application questions, again with review.
 - ⬜ **M18 — Resume recommendation**: suggest which stored resume best

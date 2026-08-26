@@ -6,10 +6,16 @@ import argparse
 
 import pytest
 
-from jaap.application.exceptions import ProfileNotFoundError
-from jaap.domain.models import Profile, new_cover_letter_template_id, new_profile_id
+from jaap.application.exceptions import JobPostingNotFoundError, ProfileNotFoundError
+from jaap.domain.models import (
+    Profile,
+    new_cover_letter_template_id,
+    new_job_posting_id,
+    new_profile_id,
+)
 from jaap.infrastructure.config.settings import Settings
 from jaap.presentation.cli.commands.cover_letter_commands import (
+    _handle_generate,
     _handle_list,
     _handle_save,
 )
@@ -106,3 +112,37 @@ def test_handle_list_prints_each_saved_template(capsys) -> None:
 
     assert exit_code == 0
     assert "Standard" in capsys.readouterr().out
+
+
+def test_handle_generate_raises_profile_not_found_before_calling_claude() -> None:
+    # _handle_generate constructs a real ClaudeProvider internally (it's
+    # composition-root-style code, like _handle_review's real
+    # PlaywrightBrowserEngine), so it can't be fully unit-tested with
+    # fakes -- but the profile/posting/template lookups all happen
+    # BEFORE any AI call, so these specific paths are fast and
+    # fake-testable, matching test_handle_review's equivalent pattern.
+    context = _make_context()
+    args = argparse.Namespace(
+        profile_id=new_profile_id(),
+        job_posting_id=new_job_posting_id(),
+        template_id=None,
+        save_as=None,
+    )
+
+    with pytest.raises(ProfileNotFoundError):
+        _handle_generate(args, context)
+
+
+def test_handle_generate_raises_job_posting_not_found_before_calling_claude() -> None:
+    context = _make_context()
+    profile = Profile(id=new_profile_id(), full_name="A", email="a@example.com")
+    context.profile_repository.save(profile)
+    args = argparse.Namespace(
+        profile_id=profile.id,
+        job_posting_id=new_job_posting_id(),
+        template_id=None,
+        save_as=None,
+    )
+
+    with pytest.raises(JobPostingNotFoundError):
+        _handle_generate(args, context)

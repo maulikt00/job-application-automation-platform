@@ -89,7 +89,9 @@ def test_full_lifecycle_start_attach_resume_submit(capsys) -> None:
     attach_args = argparse.Namespace(application_id=application.id, resume_id=resume.id)
     _handle_attach_resume(attach_args, context)
 
-    submit_args = argparse.Namespace(application_id=application.id)
+    submit_args = argparse.Namespace(
+        application_id=application.id, cover_letter_text_override=None
+    )
     exit_code = _handle_submit(submit_args, context)
 
     assert exit_code == 0
@@ -102,7 +104,9 @@ def test_handle_submit_raises_when_no_resume_attached() -> None:
     profile, posting = _seed_profile_and_posting(context)
     application = _start_application(context, profile, posting)
 
-    submit_args = argparse.Namespace(application_id=application.id)
+    submit_args = argparse.Namespace(
+        application_id=application.id, cover_letter_text_override=None
+    )
     with pytest.raises(ApplicationNotReadyForSubmissionError):
         _handle_submit(submit_args, context)
 

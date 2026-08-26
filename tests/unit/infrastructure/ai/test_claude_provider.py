@@ -17,6 +17,7 @@ import anthropic
 import pytest
 from anthropic.types import Message, TextBlock, ToolUseBlock, Usage
 
+from jaap.domain.exceptions import AIProviderError
 from jaap.infrastructure.ai.claude_provider import ClaudeProvider
 from jaap.infrastructure.config.settings import Settings
 
@@ -139,7 +140,7 @@ def test_raises_a_clear_error_when_response_has_no_text_content(
     )
     provider = ClaudeProvider(settings, client=fake_client)
 
-    with pytest.raises(ValueError, match="no text content"):
+    with pytest.raises(AIProviderError, match="no text content"):
         provider.generate_text("prompt")
 
 
@@ -149,3 +150,18 @@ def test_constructor_builds_a_real_client_when_none_is_injected(settings: Settin
     provider = ClaudeProvider(settings)
 
     assert isinstance(provider._client, anthropic.Anthropic)
+
+
+def test_sdk_exceptions_are_translated_to_ai_provider_error(settings: Settings, fake_client) -> None:
+    # A real anthropic.AnthropicError subclass, not a generic Exception --
+    # confirms the actual SDK exception hierarchy is caught correctly,
+    # not just "any exception".
+    fake_client.messages.create.side_effect = anthropic.APIConnectionError(
+        message="connection failed", request=MagicMock()
+    )
+    provider = ClaudeProvider(settings, client=fake_client)
+
+    with pytest.raises(AIProviderError) as exc_info:
+        provider.generate_text("prompt")
+
+    assert isinstance(exc_info.value.__cause__, anthropic.APIConnectionError)

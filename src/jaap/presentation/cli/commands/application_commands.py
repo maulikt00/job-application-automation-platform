@@ -42,6 +42,15 @@ def register(subparsers: argparse._SubParsersAction) -> None:
 
     submit_parser = application_subparsers.add_parser("submit", help="Submit a draft application")
     submit_parser.add_argument("--application-id", required=True, type=uuid.UUID)
+    submit_parser.add_argument(
+        "--cover-letter-text-override",
+        default=None,
+        help=(
+            "Literal cover letter text for this submission only (e.g. from "
+            "`jaap cover-letter generate`), used regardless of whether a "
+            "cover_letter_template_id is also set (see ADR-0013)."
+        ),
+    )
     submit_parser.set_defaults(handler=_handle_submit)
 
     list_parser = application_subparsers.add_parser(
@@ -94,7 +103,10 @@ def _handle_submit(args: argparse.Namespace, context: Context) -> int:
         context.answer_repository,
         context.cover_letter_template_repository,
     )
-    application = use_case.execute(ApplicationId(args.application_id))
+    application = use_case.execute(
+        ApplicationId(args.application_id),
+        cover_letter_text_override=args.cover_letter_text_override,
+    )
     print(f"Submitted application {application.id} (status: {application.current_status.value})")
     return 0
 

@@ -22,6 +22,7 @@ from __future__ import annotations
 import anthropic
 from anthropic.types import TextBlock
 
+from jaap.domain.exceptions import AIProviderError
 from jaap.infrastructure.config.settings import Settings
 
 
@@ -33,31 +34,36 @@ class ClaudeProvider:
     that model selection is a constructor/config-level concern, not a
     per-call one.
 
-    No exception translation yet: Anthropic's own exceptions (`APIError`,
-    `RateLimitError`, `AuthenticationError`, etc.) propagate untranslated
-    from generate_text(). This mirrors the exact precedent set by
-    PlaywrightBrowserEngine, which also had no exception translation when
-    it was first built (Milestone 8) -- BrowserAutomationError wasn't
-    added until Milestone 10, the first real use-case consumer. The same
-    discipline applies here: deferred to Milestone 16 (see ADR-0014/0015).
+    Exception translation (added Milestone 16, resolving the deferral
+    stated in ADR-0014/0015): every exception the SDK can raise shares
+    one common base, `anthropic.AnthropicError` (verified directly
+    against the installed SDK), so a single except clause here is
+    sufficient. Caught and re-raised as `AIProviderError`
+    (domain/exceptions.py) via exception chaining, mirroring the exact
+    precedent set by PlaywrightBrowserEngine/BrowserAutomationError
+    (Milestone 8->10).
     """
+
     def __init__(self, settings: Settings, client: anthropic.Anthropic | None = None) -> None:
         self._model = settings.anthropic_model
         self._max_tokens = settings.anthropic_max_tokens
         self._client = client or anthropic.Anthropic(api_key=settings.anthropic_api_key)
 
     def generate_text(self, prompt: str, *, system_prompt: str | None = None) -> str:
-        # anthropic.omit, not NOT_GIVEN: verified against the installed
-        # SDK that `system` specifically expects the `Omit` sentinel, a
-        # distinct type from the older `NotGiven`/`NOT_GIVEN` -- an
-        # earlier version of this code used the wrong one and mypy caught
-        # it (a real, useful type error, not a false positive).
-        response = self._client.messages.create(
-            model=self._model,
-            max_tokens=self._max_tokens,
-            messages=[{"role": "user", "content": prompt}],
-            system=system_prompt if system_prompt is not None else anthropic.omit,
-        )
+        try:
+            # anthropic.omit, not NOT_GIVEN: verified against the installed
+            # SDK that `system` specifically expects the `Omit` sentinel, a
+            # distinct type from the older `NotGiven`/`NOT_GIVEN` -- an
+            # earlier version of this code used the wrong one and mypy
+            # caught it (a real, useful type error, not a false positive).
+            response = self._client.messages.create(
+                model=self._model,
+                max_tokens=self._max_tokens,
+                messages=[{"role": "user", "content": prompt}],
+                system=system_prompt if system_prompt is not None else anthropic.omit,
+            )
+        except anthropic.AnthropicError as exc:
+            raise AIProviderError(f"Claude request failed: {exc}") from exc
 
         # response.content is a union of many possible block types
         # (TextBlock, ThinkingBlock, ToolUseBlock, ...) -- verified
@@ -68,7 +74,7 @@ class ClaudeProvider:
         # satisfies the AIProvider contract (always return str) correctly.
         text_blocks = [block.text for block in response.content if isinstance(block, TextBlock)]
         if not text_blocks:
-            raise ValueError(
+            raise AIProviderError(
                 "Claude's response contained no text content "
                 f"(got block types: {[type(b).__name__ for b in response.content]})"
             )

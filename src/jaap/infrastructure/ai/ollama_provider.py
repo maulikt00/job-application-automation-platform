@@ -32,6 +32,7 @@ from __future__ import annotations
 
 import ollama
 
+from jaap.domain.exceptions import AIProviderError
 from jaap.infrastructure.config.settings import Settings
 
 
@@ -48,12 +49,15 @@ class OllamaProvider:
     parameters -- consistent with ADR-0014's decision that model
     selection is a constructor/config-level concern.
 
-    No exception translation yet: Ollama's own exceptions (`RequestError`,
-    `ResponseError`) propagate untranslated from generate_text(),
-    mirroring the exact precedent already set twice now (once for
-    PlaywrightBrowserEngine in Milestone 8->10, once for ClaudeProvider in
-    Milestone 14) -- deferred to Milestone 16, the first real
-    use-case consumer.
+    Exception translation (added Milestone 16, resolving the deferral
+    stated in ADR-0014/0015/0016): unlike Anthropic's SDK,
+    `ollama.RequestError` and `ollama.ResponseError` share NO common base
+    beyond bare `Exception` (verified directly against the installed
+    SDK) -- both are caught explicitly as a tuple, not a single shared
+    base class the way ClaudeProvider's translation works. Re-raised as
+    `AIProviderError` (domain/exceptions.py) via exception chaining,
+    mirroring the same precedent set by PlaywrightBrowserEngine/
+    BrowserAutomationError (Milestone 8->10) and ClaudeProvider here.
     """
 
     def __init__(self, settings: Settings, client: ollama.Client | None = None) -> None:
@@ -67,15 +71,18 @@ class OllamaProvider:
             messages.append({"role": "system", "content": system_prompt})
         messages.append({"role": "user", "content": prompt})
 
-        response = self._client.chat(
-            model=self._model,
-            messages=messages,
-            options={"num_predict": self._max_tokens},
-        )
+        try:
+            response = self._client.chat(
+                model=self._model,
+                messages=messages,
+                options={"num_predict": self._max_tokens},
+            )
+        except (ollama.RequestError, ollama.ResponseError) as exc:
+            raise AIProviderError(f"Ollama request failed: {exc}") from exc
 
         content = response.message.content
         if content is None:
-            raise ValueError(
+            raise AIProviderError(
                 f"Ollama's response contained no text content (model: {self._model!r})"
             )
         return content
