@@ -274,7 +274,20 @@ code — adding a platform means adding a connector.
   scope -- `BrowserAutomationEngine` has no cross-frame capability).
   Verified against a real headless Chromium instance for both the
   form-already-present and click-to-reveal-form cases. See ADR-0021.
-- ⬜ **M21 — `LeverConnector`**
+- ✅ **M21 — `LeverConnector`**: the second concrete `WebsiteConnector`,
+  designed against Lever's own published API documentation (not
+  assumed) -- two real domains found (`jobs.lever.co`,
+  `jobs.eu.lever.co`), and a genuinely different, more reliable
+  navigation strategy than Greenhouse's: Lever's own API documents a
+  deterministic `hostedUrl` -> `applyUrl` relationship (`/apply`
+  appended to the posting URL), so navigation here is pure URL
+  manipulation, never a click. Honestly notes a weaker post-navigation
+  verification than Greenhouse's (no confirmed Lever field-name
+  selector was found, so a generic "any input present" check is used
+  instead of guessing one). Same iframe-embedding scope limitation as
+  Greenhouse, for the same reason. Verified against real Chromium and a
+  real local HTTP server (not `file://` URLs, which can't replicate
+  Lever's extension-less directory-style routes). See ADR-0022.
 - ⬜ **M22 — `WorkdayConnector`**
 - ⬜ **M23 — End-to-end application flow**: profile + resume + AI cover
   letter + connector + human review, exercised against a real (test)

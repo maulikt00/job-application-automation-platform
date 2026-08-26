@@ -9,6 +9,22 @@ which it will move to [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- `docs/adr/0022-lever-connector.md`: the design decisions behind
+  Milestone 21, grounded in Lever's own published Postings API
+  documentation -- two real domains found, and a documented,
+  deterministic `hostedUrl` -> `applyUrl` (`/apply`-suffix) URL
+  relationship enabling pure URL-manipulation navigation instead of a
+  click. Also documents a real `file://` URL testing trap distinct from
+  Milestone 20's `data:` URL trap.
+- `LeverConnector` (`infrastructure/connectors/lever_connector.py`): the
+  second concrete `WebsiteConnector`. `navigate_to_application_form()`
+  constructs the `/apply` URL directly (verified independently against
+  plain/idempotent/trailing-slash/query-string cases) rather than
+  clicking anything -- a genuine platform difference from
+  `GreenhouseConnector`, not an inconsistency. `get_field_detector()`
+  reuses the generic `PlaywrightFormFieldDetector` unchanged. Verified
+  against a real local HTTP server serving a genuine Lever-style
+  directory structure.
 - `docs/adr/0021-greenhouse-connector.md`: the design decisions behind
   Milestone 20, grounded in Greenhouse's own published documentation and
   a real embed-integration script -- two real hosting domains found
