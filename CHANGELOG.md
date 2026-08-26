@@ -9,6 +9,28 @@ which it will move to [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- `docs/adr/0023-workday-connector.md`: the design decisions behind
+  Milestone 22 -- the connector that directly addresses the custom-widget
+  detection gap that motivated Phase 4's existence, with an explicit,
+  honest confidence distinction from Greenhouse/Lever's confirmed
+  selectors (ARIA-pattern-based inference, not primary-source Workday
+  documentation), and a real, named follow-up gap (combobox filling is
+  not yet built).
+- `WorkdayFormFieldDetector` (`infrastructure/connectors/workday_form_field_detector.py`):
+  composes the generic `PlaywrightFormFieldDetector` and adds detection
+  of ARIA `role="combobox"` custom dropdowns. Every detected combobox
+  has `selector=None`, guaranteeing (verified directly against
+  `ExactFieldMatcher`, even with a perfectly matching saved `Answer`
+  available) that it can never be automatically matched or filled.
+- `WorkdayConnector` (`infrastructure/connectors/workday_connector.py`):
+  the third concrete `WebsiteConnector`. Reuses the same `/apply`-suffix
+  navigation pattern as `LeverConnector` -- confirmed independently for
+  Workday, not assumed to generalize from one platform.
+- `infrastructure/connectors/_url_utils.py`: `append_apply_path()`,
+  extracted from `lever_connector.py` once `workday_connector.py` needed
+  the identical logic -- confirmed for two platforms independently, not
+  coincidentally similar. `LeverConnector` updated to use the shared
+  version; its own copy removed.
 - `docs/adr/0022-lever-connector.md`: the design decisions behind
   Milestone 21, grounded in Lever's own published Postings API
   documentation -- two real domains found, and a documented,
