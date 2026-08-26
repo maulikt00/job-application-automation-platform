@@ -141,7 +141,8 @@ def test_handle_generate_raises_profile_not_found_before_calling_claude() -> Non
     # specific path is fast and fake-testable.
     context = _make_context()
     args = argparse.Namespace(
-        profile_id=new_profile_id(), question="Why do you want to work here?", save_as=None
+        profile_id=new_profile_id(), question="Why do you want to work here?",
+        save_as=None, provider="claude",
     )
 
     with pytest.raises(ProfileNotFoundError):

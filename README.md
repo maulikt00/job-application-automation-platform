@@ -78,15 +78,16 @@ python -m playwright install chromium
 pytest tests/unit -v
 ```
 
-318 tests, covering domain models, configuration/logging, the database
+321 tests, covering domain models, configuration/logging, the database
 layer, all six repositories, core use cases, the CLI, browser automation
 including form field detection/autofill/resume upload/the human review
 gate (run against a real headless Chromium instance and a real local
 HTTP server, not mocks), the submitted content snapshot, automated
 architecture-boundary enforcement, two AI providers (`ClaudeProvider`,
 `OllamaProvider`, each tested against their real SDK's response shape
-via a fake client, no real API calls), and AI-generated cover letters,
-application answers, and resume recommendations.
+via a fake client, no real API calls, and each selectable via
+`--provider`), and AI-generated cover letters, application answers, and
+resume recommendations.
 
 ## Tech Stack
 

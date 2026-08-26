@@ -228,6 +228,27 @@ to create one without calling the use case directly in Python.
   nothing to save, just a pointer at an existing `Resume` plus
   reasoning. See ADR-0019. **This completes Phase 3.**
 
+## Pre-Phase-4 Cleanup
+
+A lead-engineer-style review after Phase 3's completion identified two
+items worth resolving before Phase 4 begins, matching the same
+discipline applied before Phase 3. Both complete:
+
+- ✅ **`--provider claude|ollama` on every AI-backed CLI command**:
+  `jaap cover-letter generate`, `jaap answer generate`, and `jaap resume
+  recommend` each previously hardcoded `ClaudeProvider(context.settings)`
+  directly, with no way to actually choose `OllamaProvider` -- despite
+  Milestone 15 proving the interface genuinely supports it. Fixed via a
+  new shared `presentation/cli/ai_provider_factory.py`, avoiding
+  duplicating provider-selection logic across three command modules.
+- ✅ **`ARCHITECTURE.md` brought current a second time**: it had gone
+  stale again, still describing `AIProvider`/`ClaudeProvider`/
+  `OllamaProvider`/the three AI use cases as "not yet defined"/"planned"
+  even after all of Phase 3 shipped -- because it was last updated just
+  *before* Phase 3 began, not during it. Now documents the real
+  `AIProvider` consumer pattern and a second worked data-flow example
+  (AI-generated content), alongside the existing autofill/review one.
+
 ## Phase 4 — Website Connectors
 
 **Goal:** support real job platforms without modifying existing, working
