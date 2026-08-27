@@ -28,13 +28,15 @@ becoming unmaintainable.
 
 🚧 Active development. See [PROJECT_ROADMAP.md](PROJECT_ROADMAP.md) for the
 full milestone breakdown. **Phase 1 (Core Domain & Data)**, **Phase 2
-(Browser Automation)**, and **Phase 3 (AI Integration)** are complete:
-domain models, configuration/logging, the SQLite database layer, all six
-repositories, core use cases, a CLI, browser automation through form
-detection, autofill, resume upload, and the human review gate, plus two
-AI providers (Claude, Ollama) powering AI-generated cover letters,
-application answers, and resume recommendations. **Phase 4 (Website
-Connectors)** is next.
+(Browser Automation)**, **Phase 3 (AI Integration)**, and **Phase 4
+(Website Connectors)** are complete: domain models, configuration/logging,
+the SQLite database layer, all six repositories, core use cases, a CLI,
+browser automation through form detection, autofill, resume upload, and
+the human review gate, two AI providers (Claude, Ollama) powering
+AI-generated cover letters, application answers, and resume
+recommendations, and three website connectors (Greenhouse, Lever,
+Workday) actually wired into the CLI's autofill flow via a connector
+registry. **Phase 5 (Platform & Scale)** is next.
 
 ## Architecture
 
@@ -57,10 +59,11 @@ See [PROJECT_ROADMAP.md](PROJECT_ROADMAP.md) for the milestone-level breakdown.
 
 ## Getting Started
 
-> Phases 1, 2, and 3 are complete: domain models through the CLI, browser
-> automation from field detection through the human review gate, and AI
-> integration (Claude, Ollama, AI-generated content). Phase 4 (website
-> connectors) is next.
+> Phases 1-4 are complete: domain models through the CLI, browser
+> automation from field detection through the human review gate, AI
+> integration (Claude, Ollama, AI-generated content), and three website
+> connectors (Greenhouse, Lever, Workday) wired into the autofill flow.
+> Phase 5 (platform & scale) is next.
 
 ```bash
 python -m venv .venv
@@ -78,7 +81,7 @@ python -m playwright install chromium
 pytest tests/unit -v
 ```
 
-358 tests, covering domain models, configuration/logging, the database
+365 tests, covering domain models, configuration/logging, the database
 layer, all six repositories, core use cases, the CLI, browser automation
 including form field detection/autofill/resume upload/the human review
 gate (run against a real headless Chromium instance and a real local
@@ -87,11 +90,11 @@ architecture-boundary enforcement, two AI providers (`ClaudeProvider`,
 `OllamaProvider`, each tested against their real SDK's response shape
 via a fake client, no real API calls, and each selectable via
 `--provider`), AI-generated cover letters/application answers/resume
-recommendations, and the website connector interface plus three
-concrete implementations (`GreenhouseConnector`, `LeverConnector`,
-`WorkdayConnector`, each verified against real Chromium and grounded in
-their platform's own published documentation, with confidence levels
-stated honestly where the evidence was weaker).
+recommendations, three website connectors (`GreenhouseConnector`,
+`LeverConnector`, `WorkdayConnector`, each verified against real
+Chromium), and the connector registry that actually wires them into
+`jaap application review`, proven both by hand and via a comprehensive
+end-to-end test covering the full application flow.
 
 ## Tech Stack
 

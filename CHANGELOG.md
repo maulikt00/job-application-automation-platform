@@ -9,6 +9,22 @@ which it will move to [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- `docs/adr/0024-end-to-end-application-flow.md`: the design decisions
+  behind Milestone 23, including a real, previously-undiscovered gap
+  (`jaap application review` never consulted a `WebsiteConnector` since
+  Milestone 12, despite three connectors existing) and how it was
+  verified fixed both by hand (a temporary real-domain redirect) and via
+  a permanent, portable automated suite.
+- `infrastructure/connectors/registry.py`: `find_connector(url)`, a
+  plain list-and-check selecting among the three built connectors.
+  `jaap application review` now consults it, using a matching
+  connector's own navigation/detection instead of always falling back to
+  the generic detector, and prints the detected platform when one matches.
+- `tests/unit/presentation/cli/test_review_connector_wiring_end_to_end.py`,
+  `test_full_application_flow_end_to_end.py`: real, Chromium-backed
+  end-to-end tests proving the connector wiring works and that the full
+  flow (profile, resume, AI-generated cover letter, connector-aware
+  review, submission) composes correctly together.
 - `docs/adr/0023-workday-connector.md`: the design decisions behind
   Milestone 22 -- the connector that directly addresses the custom-widget
   detection gap that motivated Phase 4's existence, with an explicit,
@@ -451,6 +467,15 @@ which it will move to [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- `presentation/cli/main.py`: the top-level exception handler never
+  caught plain `ValueError`, even though every `WebsiteConnector`
+  implementation (and `BrowserAutomationEngine.evaluate()`'s own
+  JSON-validation check) raises exactly that for its own expected
+  failure modes -- found while wiring connectors into `application
+  review` (Milestone 23). Previously would have surfaced as a raw,
+  unhandled traceback instead of the clean one-line message every other
+  expected failure produces; fixed by adding `ValueError` to the
+  top-level catch clause.
 - `infrastructure/ai/claude_provider.py`: two real bugs caught by mypy
   during development, before either could reach a real API call. (1)
   Used `anthropic.NOT_GIVEN` for the optional `system` parameter; the
