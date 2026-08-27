@@ -156,7 +156,13 @@ def main(argv: list[str] | None = None, settings: Settings | None = None) -> int
 
     try:
         return args.handler(args, context)
-    except (UseCaseError, DomainError) as exc:
+    except (UseCaseError, DomainError, ValueError) as exc:
+        # ValueError added in Milestone 23: WebsiteConnector implementations
+        # (and BrowserAutomationEngine.evaluate()'s own JSON-validation
+        # check) raise plain ValueError for their own expected failure
+        # modes -- a real gap found while wiring connectors into the CLI,
+        # since neither was previously caught here, meaning either would
+        # have produced a raw traceback instead of a clean message.
         print(f"Error: {exc}", file=sys.stderr)
         return 1
 
