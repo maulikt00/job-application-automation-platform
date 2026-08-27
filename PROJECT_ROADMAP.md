@@ -305,9 +305,24 @@ code — adding a platform means adding a connector.
   "unmatched field." Actually filling a combobox remains real, named,
   unbuilt future work (`AutofillApplicationUseCase` has no dispatch
   branch for it yet). See ADR-0023. **This completes Phase 4's connectors.**
-- ⬜ **M23 — End-to-end application flow**: profile + resume + AI cover
-  letter + connector + human review, exercised against a real (test)
-  posting on each supported platform.
+- ✅ **M23 — End-to-end application flow**: found and closed a real gap
+  discovered while investigating this milestone's own scope --
+  `jaap application review` had never once constructed or consulted a
+  `WebsiteConnector` since Milestone 12, meaning all three connectors
+  built in M19-22 were correct in isolation but unreachable from real
+  usage. Added `infrastructure/connectors/registry.py`
+  (`find_connector()`) and wired it into `_handle_review`; a second
+  real gap found alongside it (`main.py` never caught the plain
+  `ValueError` every connector raises for its own failure mode) was
+  fixed too. Verified genuinely twice: once by hand (a temporary
+  `/etc/hosts` redirect to a real Greenhouse domain, confirmed against
+  the real CLI), then via a permanent, portable automated suite (a real
+  `GreenhouseConnector` instance injected via `find_connector`, avoiding
+  a fragile DNS dependency in the checked-in tests). A comprehensive
+  test ties every piece together: profile + resume + AI-generated cover
+  letter (fake provider) + connector-aware review + submission,
+  verified against the final `SubmittedContentSnapshot` directly. See
+  ADR-0024. **This completes Phase 4.**
 
 ## Phase 5 — Platform & Scale (Future)
 

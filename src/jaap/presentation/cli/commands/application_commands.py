@@ -19,6 +19,7 @@ from jaap.application.use_cases.submit_application import SubmitApplicationUseCa
 from jaap.domain.models import ApplicationId, JobPostingId, ProfileId, ResumeId
 from jaap.infrastructure.browser.form_field_detector import PlaywrightFormFieldDetector
 from jaap.infrastructure.browser.playwright_engine import PlaywrightBrowserEngine
+from jaap.infrastructure.connectors.registry import find_connector
 
 if TYPE_CHECKING:
     from jaap.presentation.cli.main import Context
@@ -148,9 +149,23 @@ def _handle_review(args: argparse.Namespace, context: Context) -> int:
     with PlaywrightBrowserEngine(context.settings) as engine:
         engine.navigate(str(posting.url))
 
+        # Milestone 23: consult the connector registry instead of always
+        # using the generic detector. This is the real gap Milestones
+        # 19-22's connectors sat behind until now -- nothing previously
+        # constructed or consulted one from this command at all. Falling
+        # back to the generic detector when no connector matches is the
+        # expected, ordinary case for any platform without a connector
+        # yet, not an error.
+        connector = find_connector(str(posting.url))
+        if connector is not None:
+            connector.navigate_to_application_form(engine)
+            form_field_detector = connector.get_field_detector(engine)
+        else:
+            form_field_detector = PlaywrightFormFieldDetector(engine)
+
         autofill_use_case = AutofillApplicationUseCase(
             browser_engine=engine,
-            form_field_detector=PlaywrightFormFieldDetector(engine),
+            form_field_detector=form_field_detector,
             field_matcher=ExactFieldMatcher(),
             profile_repository=context.profile_repository,
             answer_repository=context.answer_repository,
@@ -163,6 +178,10 @@ def _handle_review(args: argparse.Namespace, context: Context) -> int:
             screenshot_path=screenshot_path,
             resume_id=ResumeId(args.resume_id) if args.resume_id else None,
         )
+
+    if connector is not None:
+        print(f"Detected platform: {connector.platform_name}")
+        print()
 
     print(f"Autofilled {len(review.matched)} field(s):")
     for matched in review.matched:
