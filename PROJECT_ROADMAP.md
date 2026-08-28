@@ -324,6 +324,33 @@ code — adding a platform means adding a connector.
   verified against the final `SubmittedContentSnapshot` directly. See
   ADR-0024. **This completes Phase 4.**
 
+## Real-World Validation (in progress)
+
+Following the post-Phase-4 checkpoint review's top recommendation:
+before any further Phase 5 work, validate the three connectors against
+actual live postings, not just synthetic test pages -- something none
+of Milestones 20-23 had done.
+
+- ✅ **Lever, first pass** ([ADR-0025](docs/adr/0025-implicit-label-detection.md)):
+  ran `jaap application review` against a real `jobs.lever.co` posting.
+  The connector was correctly detected and navigation/autofill worked
+  mechanically (`name`/`email` correctly filled), but most fields came
+  back with no label at all. Root cause: Lever wraps its inputs
+  *inside* `<label>` elements (a standard, valid HTML pattern our
+  generic detector never checked for -- it only recognized
+  `<label for="id">`). Fixed generically, not as a Lever-specific
+  patch. Two unrelated bugs were also caught purely by running this for
+  real: a Python `SyntaxWarning` from a non-raw string holding the
+  detector's JS, and a `data:` URL character-encoding trap distinct from
+  Milestone 20's earlier `#`-fragment one. One real gap remains open and
+  named, not silently worked around: a completely unlabeled EEO dropdown
+  field (no `label`, no `aria-label`, sibling-only text) would need a
+  meaningfully more fragile "nearest sibling text" heuristic -- not
+  attempted without more evidence.
+- ⬜ Lever, remaining fields (custom application questions, EEO block)
+- ⬜ Greenhouse, live posting
+- ⬜ Workday, live posting
+
 ## Phase 5 — Platform & Scale (Future)
 
 Not yet broken into milestones; scope will be defined once Phase 4 is
