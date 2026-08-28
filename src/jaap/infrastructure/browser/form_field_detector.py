@@ -66,9 +66,37 @@ _DETECTION_SCRIPT = r"""
   }
 
   function selectorFor(el) {
+    // EEO / voluntary self-identification fields (gender, race, veteran
+    // status, disability status, and the disability disclosure's own
+    // signature/date fields) must NEVER be auto-fillable, regardless of
+    // what their label says. Found via real-world validation against a
+    // live Lever posting (2026-08, see ADR-0026): a disability
+    // self-identification SIGNATURE field is commonly labeled "Full
+    // Name" (the standard federal CC-305 form template's own wording)
+    // -- indistinguishable, by label text alone, from an ordinary
+    // contact-info "full name" field. Forcing selector=null here is the
+    // same structural safety pattern already used for Workday's
+    // ARIA-combobox fields (ADR-0023): the existing, already-tested
+    // invariant that a field with no selector can never be matched or
+    // filled (see application/services/field_matcher.py) makes this a
+    // hard guarantee, not something that depends on every FieldMatcher
+    // implementation separately remembering to special-case it.
+    if (isEeoField(el)) return null;
     if (el.id) return `#${CSS.escape(el.id)}`;
     if (el.name) return `[name="${CSS.escape(el.name)}"]`;
     return null;
+  }
+
+  function isEeoField(el) {
+    // Verified against real Lever markup: eeo[gender], eeo[race],
+    // eeo[veteran], eeo[disability], eeo[disabilitySignature],
+    // eeo[disabilitySignatureDate] all share this literal "eeo["
+    // prefix. This is Lever's own naming convention, confirmed on one
+    // real platform -- not yet verified against Greenhouse/Workday's
+    // own voluntary-disclosure field naming, which may differ and would
+    // need this check extended once validated for real (see ADR-0026).
+    const name = (el.name || "").toLowerCase();
+    return name.startsWith("eeo[") || name.startsWith("eeo_") || name.startsWith("eeo-");
   }
 
   function fieldType(el) {

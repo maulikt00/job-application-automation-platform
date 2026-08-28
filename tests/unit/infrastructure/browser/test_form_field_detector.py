@@ -234,3 +234,68 @@ def test_explicit_label_for_association_still_works_alongside_implicit(
         )
         fields = PlaywrightFormFieldDetector(engine).detect_fields()
     assert fields[0].label == "Explicit Label"
+
+
+# The tests below cover a second real-world-validation-found fix
+# (ADR-0026, found in the same session as the implicit-label fix above):
+# an EEO voluntary self-identification field's SIGNATURE section on a
+# real Lever posting is commonly labeled "Full Name" -- identical, by
+# label text alone, to an ordinary contact-info field. These fields must
+# never be auto-fillable regardless of what their label says, so
+# `selector` is forced to None at detection time for any field whose
+# `name` matches the observed `eeo[...]` naming convention.
+
+
+def test_eeo_bracket_named_field_never_gets_a_selector(tmp_path) -> None:
+    form = tmp_path / "eeo.html"
+    form.write_text(
+        '<html><head><meta charset="utf-8"></head><body>'
+        '<label>Full Name<input type="text" name="eeo[disabilitySignature]" '
+        'placeholder="Enter your full name"></label>'
+        "</body></html>",
+        encoding="utf-8",
+    )
+    settings = Settings(_env_file=None)
+    with PlaywrightBrowserEngine(settings) as engine:
+        engine.navigate(f"file://{form}")
+        fields = PlaywrightFormFieldDetector(engine).detect_fields()
+
+    eeo_field = next(f for f in fields if f.name == "eeo[disabilitySignature]")
+    assert eeo_field.selector is None
+    # The label is still detected correctly (so a human reviewing
+    # unmatched fields can see what it actually is) -- only the
+    # selector, which is what makes a field fillable at all, is
+    # suppressed.
+    assert eeo_field.label == "Full Name"
+
+
+def test_an_ordinary_name_field_is_unaffected_by_the_eeo_exclusion(tmp_path) -> None:
+    form = tmp_path / "ordinary.html"
+    form.write_text(
+        '<html><head><meta charset="utf-8"></head><body>'
+        '<label>Full name<input type="text" name="name"></label>'
+        "</body></html>",
+        encoding="utf-8",
+    )
+    settings = Settings(_env_file=None)
+    with PlaywrightBrowserEngine(settings) as engine:
+        engine.navigate(f"file://{form}")
+        fields = PlaywrightFormFieldDetector(engine).detect_fields()
+
+    assert fields[0].selector == '[name="name"]'
+
+
+def test_eeo_dropdown_field_also_has_no_selector(tmp_path) -> None:
+    form = tmp_path / "eeo_select.html"
+    form.write_text(
+        '<html><head><meta charset="utf-8"></head><body>'
+        '<select name="eeo[gender]"><option value="Male">Male</option></select>'
+        "</body></html>",
+        encoding="utf-8",
+    )
+    settings = Settings(_env_file=None)
+    with PlaywrightBrowserEngine(settings) as engine:
+        engine.navigate(f"file://{form}")
+        fields = PlaywrightFormFieldDetector(engine).detect_fields()
+
+    assert fields[0].selector is None
