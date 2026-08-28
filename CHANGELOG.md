@@ -9,6 +9,19 @@ which it will move to [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- `docs/adr/0027-visible-text-label-extraction.md`: a fourth
+  real-world-validation finding from the same Lever session. After the
+  prior two fixes, `resume` and `location` labels were still noisy --
+  several UI-state status messages ("Analyzing resume...", "Success!",
+  "Loading") concatenated together, since label extraction read all
+  text inside a label regardless of whether it was actually visible.
+  Fixed by walking the live DOM and filtering to visible text only, not
+  a detached clone (which has no meaningful computed style). Honestly
+  noted as not yet fully re-confirmed against the live posting.
+- `PlaywrightFormFieldDetector`'s label extraction rewritten to use a
+  `TreeWalker` over live text nodes, checking `offsetParent`/computed
+  `visibility` per ancestor, instead of cloning the label element and
+  stripping nested controls from a detached copy.
 - `docs/adr/0026-eeo-exclusion-and-fill-resilience.md`: two more
   real-world-validation findings from the same Lever session, the more
   serious of the two so far. An EEO voluntary self-identification

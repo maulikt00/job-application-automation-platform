@@ -49,20 +49,62 @@ _DETECTION_SCRIPT = r"""
   }
 
   function textExcludingNestedControls(labelEl) {
-    // Clone and strip any nested form controls before reading
-    // textContent -- a <label> can wrap a <select> with many <option>
-    // children (whose text would otherwise leak into the label), or,
-    // as found in the same real-world validation, wrap the field
-    // itself alongside the label text.
-    const clone = labelEl.cloneNode(true);
-    clone.querySelectorAll("input, select, textarea, button").forEach((node) => node.remove());
-    let text = clone.textContent.trim();
+    // Walks the label's actual, LIVE descendants (a TreeWalker over real
+    // text nodes), not a detached clone -- found necessary during
+    // real-world validation against a live Lever posting: a label can
+    // legitimately contain several state-dependent status messages all
+    // present in the DOM simultaneously (e.g. a resume-upload widget's
+    // "Analyzing resume...", "Success!", and a location-autocomplete
+    // widget's "Loading"/"No location found" text), with only one
+    // visible at a time via CSS. A detached clone has no meaningful
+    // computed style at all (it isn't attached to the document's layout
+    // tree), so visibility can only be checked against the real,
+    // attached elements -- this is why cloning was abandoned in favor of
+    // walking the live tree directly. Nested form controls
+    // (input/select/textarea/button) are still excluded, exactly as
+    // the clone-based version did.
+    const parts = [];
+    const walker = document.createTreeWalker(labelEl, NodeFilter.SHOW_TEXT, {
+      acceptNode(node) {
+        let el = node.parentElement;
+        while (el) {
+          const tag = el.tagName.toLowerCase();
+          if (tag === "input" || tag === "select" || tag === "textarea" || tag === "button") {
+            return NodeFilter.FILTER_REJECT;
+          }
+          if (!isVisible(el)) return NodeFilter.FILTER_REJECT;
+          if (el === labelEl) break;
+          el = el.parentElement;
+        }
+        return NodeFilter.FILTER_ACCEPT;
+      },
+    });
+    let node;
+    while ((node = walker.nextNode())) {
+      const text = node.textContent.trim();
+      if (text) parts.push(text);
+    }
+    let text = parts.join(" ").trim();
     // Strip a common trailing "required" marker glyph (e.g. a literal
     // asterisk or the "✱" character seen on the real Lever field this
     // was verified against) so the label reads cleanly rather than
     // "Full name✱".
-    text = text.replace(/[*✱]\s*$/, "").trim();
+    if (text.endsWith("*") || text.endsWith("\u2731")) {
+      text = text.slice(0, -1).trim();
+    }
     return text || null;
+  }
+
+  function isVisible(el) {
+    // offsetParent is null for display:none (and for any element with
+    // a display:none ancestor) -- a cheap, single-property check that
+    // covers the real cases found during validation. Also checks
+    // visibility:hidden directly, since offsetParent alone does not
+    // catch that case (a visibility:hidden element still participates
+    // in layout).
+    if (el.offsetParent === null) return false;
+    if (window.getComputedStyle(el).visibility === "hidden") return false;
+    return true;
   }
 
   function selectorFor(el) {

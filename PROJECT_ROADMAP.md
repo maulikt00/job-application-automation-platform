@@ -364,6 +364,21 @@ of Milestones 20-23 had done.
   all -- `AutofillApplicationUseCase` now demotes a failing field to
   "needs review" and continues, so one bad field can no longer take
   down an otherwise-successful run.
+- ✅ **Lever, third pass** ([ADR-0027](docs/adr/0027-visible-text-label-extraction.md)):
+  after both fixes above, the review command completed cleanly and every
+  `eeo[...]` field showed real, correct labels (confirming ADR-0025/0026
+  work on the live site) -- but `resume` and `location` still had badly
+  noisy labels, clearly several UI-state status messages
+  ("Analyzing resume...", "Success!", "Loading") concatenated together,
+  since label extraction read all text inside a label regardless of
+  whether it was actually visible right now. Fixed by walking the live
+  DOM (not a detached clone, which has no meaningful computed style)
+  and filtering to visible text only. **Honestly incomplete**: the
+  exact real markup for Lever's resume/location widgets wasn't
+  captured, so this fix is verified against a plausible synthetic
+  reconstruction of the symptom, not the real widget directly --
+  needs one more live re-check to confirm fully.
+- ⬜ Lever, re-check resume/location labels against the live posting
 - ⬜ Lever, remaining fields (custom application questions)
 - ⬜ Greenhouse, live posting
 - ⬜ Workday, live posting
