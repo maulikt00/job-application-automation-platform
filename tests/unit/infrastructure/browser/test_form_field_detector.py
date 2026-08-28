@@ -155,3 +155,82 @@ def test_selector_is_none_when_neither_id_nor_name_is_present() -> None:
         engine.navigate('data:text/html,<html><body><input type="text"></body></html>')
         fields = PlaywrightFormFieldDetector(engine).detect_fields()
     assert fields[0].selector is None
+
+
+# The tests below use the EXACT real HTML captured from a live Lever
+# application form during real-world validation (2026-08), not a
+# synthetic guess -- see ADR-0025. A real temp file (tmp_path) is used
+# rather than a `data:` URL: this exact validation session separately
+# discovered that `data:` URLs mis-decode non-ASCII characters (the "✱"
+# required-marker glyph below) without an explicit charset, producing
+# mojibake unrelated to the detector logic actually being tested.
+_REAL_LEVER_MARKUP = """
+<html><head><meta charset="utf-8"></head><body>
+<li class="application-question"><label><div class="application-label">Full name<span class="required">\u2731</span></div><div class="application-field"><input type="text" data-qa="name-input" name="name" required=""></div></label></li>
+<li class="application-question"><label><div class="application-label">Email<span class="required">\u2731</span></div><div class="application-field"><input name="email" data-qa="email-input" type="email" required=""></div></label></li>
+<li class="column"><label><input type="checkbox" name="pronouns" value="He/him" class="standardPronounsOption"><span class="application-answer-alternative">He/him</span></label></li>
+</body></html>
+"""
+
+
+@pytest.fixture
+def real_lever_fields(tmp_path):
+    form_file = tmp_path / "lever_form.html"
+    form_file.write_text(_REAL_LEVER_MARKUP, encoding="utf-8")
+    settings = Settings(_env_file=None)
+    with PlaywrightBrowserEngine(settings) as engine:
+        engine.navigate(f"file://{form_file}")
+        fields = PlaywrightFormFieldDetector(engine).detect_fields()
+    return {f.name: f for f in fields}
+
+
+def test_implicit_label_wrapping_input_and_text_is_detected(real_lever_fields) -> None:
+    # Lever wraps the input directly inside <label>...<div>Full name</div>
+    # <input></label> -- no `for`/`id` pairing, no aria-label. Previously
+    # returned label=None entirely.
+    assert real_lever_fields["name"].label == "Full name"
+    assert real_lever_fields["email"].label == "Email"
+
+
+def test_implicit_label_wrapping_input_and_answer_text_is_detected(real_lever_fields) -> None:
+    # A checkbox wrapped in <label><input>...<span>He/him</span></label> --
+    # the label text is a sibling of the input inside the same <label>,
+    # not preceding it.
+    assert real_lever_fields["pronouns"].label == "He/him"
+
+
+def test_required_marker_glyph_is_stripped_from_the_label() -> None:
+    # Verified independently of the fixture above so a future change to
+    # _REAL_LEVER_MARKUP doesn't accidentally stop covering this: neither
+    # "Full name" nor "Email" should retain the trailing "✱" Lever
+    # renders next to every required field's label.
+    settings = Settings(_env_file=None)
+    with PlaywrightBrowserEngine(settings) as engine:
+        engine.navigate(
+            'data:text/html,<html><body><label>Field'
+            '<span>*</span><input name="f" type="text"></label></body></html>'
+        )
+        fields = PlaywrightFormFieldDetector(engine).detect_fields()
+    assert fields[0].label == "Field"
+
+
+def test_explicit_label_for_association_still_works_alongside_implicit(
+    real_lever_fields,
+) -> None:
+    # Regression check: adding implicit-label support must not break the
+    # pre-existing explicit label[for=id] path this file already tests
+    # elsewhere (test_selector_prefers_id_over_name and friends) --
+    # exercised again here against the real-world fixture's own fields,
+    # which use the implicit form exclusively, to confirm the explicit
+    # path wasn't accidentally made unreachable by checking implicit
+    # association first.
+    settings = Settings(_env_file=None)
+    with PlaywrightBrowserEngine(settings) as engine:
+        engine.navigate(
+            'data:text/html,<html><body>'
+            '<label for="x">Explicit Label</label>'
+            '<input id="x" name="x" type="text">'
+            '</body></html>'
+        )
+        fields = PlaywrightFormFieldDetector(engine).detect_fields()
+    assert fields[0].label == "Explicit Label"
