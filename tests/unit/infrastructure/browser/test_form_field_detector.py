@@ -299,3 +299,68 @@ def test_eeo_dropdown_field_also_has_no_selector(tmp_path) -> None:
         fields = PlaywrightFormFieldDetector(engine).detect_fields()
 
     assert fields[0].selector is None
+
+
+# The tests below cover a third real-world-validation-found fix (found
+# in the same session as ADR-0025/0026, documented alongside them): a
+# label can legitimately contain several state-dependent status
+# messages all present in the DOM simultaneously (a real Lever
+# resume-upload widget's "Analyzing resume...", "Success!"; a location
+# widget's "Loading"/"No location found"), with only one visible at a
+# time via CSS. Label text must only be drawn from what's actually
+# visible right now, not everything textually present in the label.
+
+
+def test_display_none_text_is_excluded_from_the_label(tmp_path) -> None:
+    form = tmp_path / "hidden_status.html"
+    form.write_text(
+        '<html><head><meta charset="utf-8"><style>.hidden { display: none; }</style></head>'
+        '<body><label>Resume<input type="file" name="resume">'
+        '<div class="hidden">Analyzing resume...</div>'
+        "</label></body></html>",
+        encoding="utf-8",
+    )
+    settings = Settings(_env_file=None)
+    with PlaywrightBrowserEngine(settings) as engine:
+        engine.navigate(f"file://{form}")
+        fields = PlaywrightFormFieldDetector(engine).detect_fields()
+
+    assert fields[0].label == "Resume"
+
+
+def test_visibility_hidden_text_is_excluded_from_the_label(tmp_path) -> None:
+    form = tmp_path / "visibility_hidden.html"
+    form.write_text(
+        '<html><head><meta charset="utf-8">'
+        '<style>.invisible { visibility: hidden; }</style></head>'
+        '<body><label>Location<input type="text" name="location">'
+        '<div class="invisible">No location found</div>'
+        "</label></body></html>",
+        encoding="utf-8",
+    )
+    settings = Settings(_env_file=None)
+    with PlaywrightBrowserEngine(settings) as engine:
+        engine.navigate(f"file://{form}")
+        fields = PlaywrightFormFieldDetector(engine).detect_fields()
+
+    assert fields[0].label == "Location"
+
+
+def test_visible_status_text_is_still_included(tmp_path) -> None:
+    # Confirms the fix filters specifically on visibility, not on
+    # "any div inside the label" -- genuinely visible sibling text must
+    # still be included, not over-zealously stripped.
+    form = tmp_path / "visible_status.html"
+    form.write_text(
+        '<html><head><meta charset="utf-8"></head>'
+        '<body><label>Resume<input type="file" name="resume">'
+        "<div>Success!</div>"
+        "</label></body></html>",
+        encoding="utf-8",
+    )
+    settings = Settings(_env_file=None)
+    with PlaywrightBrowserEngine(settings) as engine:
+        engine.navigate(f"file://{form}")
+        fields = PlaywrightFormFieldDetector(engine).detect_fields()
+
+    assert fields[0].label == "Resume Success!"
