@@ -16,22 +16,53 @@ from jaap.application.interfaces.form_field_detector import DetectedField
 # Runs entirely in the browser via engine.evaluate(). Returns a plain
 # JSON-compatible array of objects matching DetectedField's fields
 # exactly, so Python-side parsing is a direct model_validate() per item.
-_DETECTION_SCRIPT = """
+_DETECTION_SCRIPT = r"""
 (() => {
   const EXCLUDED_INPUT_TYPES = new Set(["hidden", "submit", "button", "reset", "image"]);
 
   function labelFor(el) {
+    // Explicit association: <label for="id">Text</label> ... <input id="id">
     if (el.id) {
       const associated = document.querySelector(`label[for="${CSS.escape(el.id)}"]`);
-      if (associated && associated.textContent.trim()) {
-        return associated.textContent.trim();
+      if (associated) {
+        const text = textExcludingNestedControls(associated);
+        if (text) return text;
       }
+    }
+    // Implicit association: <label>Text<input></label> -- an equally
+    // valid, standard HTML pattern with no `for`/`id` at all. Found
+    // missing during real-world validation against a live Lever
+    // application form (2026-08): Lever wraps its "Full name"/"Email"
+    // inputs and each individual checkbox option this way, with no
+    // `for`/`id` pairing and no aria-label -- every one of those fields
+    // was previously reported with no label at all.
+    const wrappingLabel = el.closest("label");
+    if (wrappingLabel) {
+      const text = textExcludingNestedControls(wrappingLabel);
+      if (text) return text;
     }
     const ariaLabel = el.getAttribute("aria-label");
     if (ariaLabel && ariaLabel.trim()) return ariaLabel.trim();
     const placeholder = el.getAttribute("placeholder");
     if (placeholder && placeholder.trim()) return placeholder.trim();
     return null;
+  }
+
+  function textExcludingNestedControls(labelEl) {
+    // Clone and strip any nested form controls before reading
+    // textContent -- a <label> can wrap a <select> with many <option>
+    // children (whose text would otherwise leak into the label), or,
+    // as found in the same real-world validation, wrap the field
+    // itself alongside the label text.
+    const clone = labelEl.cloneNode(true);
+    clone.querySelectorAll("input, select, textarea, button").forEach((node) => node.remove());
+    let text = clone.textContent.trim();
+    // Strip a common trailing "required" marker glyph (e.g. a literal
+    // asterisk or the "✱" character seen on the real Lever field this
+    // was verified against) so the label reads cleanly rather than
+    // "Full name✱".
+    text = text.replace(/[*✱]\s*$/, "").trim();
+    return text || null;
   }
 
   function selectorFor(el) {

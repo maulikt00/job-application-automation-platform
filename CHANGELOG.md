@@ -9,6 +9,19 @@ which it will move to [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- `docs/adr/0025-implicit-label-detection.md`: the first fix in this
+  project's history driven by validating against a real, live website
+  rather than documentation. Ran `jaap application review` against a
+  real `jobs.lever.co` posting: the connector worked mechanically, but
+  most fields came back with no label at all. Root cause: Lever wraps
+  inputs *inside* `<label>` elements (a standard HTML pattern, not
+  Lever-specific) that the generic detector never checked for.
+- `PlaywrightFormFieldDetector`'s label detection gained implicit
+  `<label>`-wrapping support (in addition to the existing explicit
+  `label[for=id]`), with nested form controls stripped before reading
+  label text, and a trailing "required" marker glyph (`*`/`✱`) stripped
+  from the result. Verified against the exact real HTML captured from
+  the live site, not a synthetic guess.
 - `docs/adr/0024-end-to-end-application-flow.md`: the design decisions
   behind Milestone 23, including a real, previously-undiscovered gap
   (`jaap application review` never consulted a `WebsiteConnector` since
@@ -467,6 +480,20 @@ which it will move to [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- `infrastructure/browser/form_field_detector.py`: two real bugs caught
+  purely by running the detector against a real, rendered live page
+  rather than reading the source. (1) `_DETECTION_SCRIPT` was a plain
+  (non-raw) Python triple-quoted string containing JS regex backslashes,
+  producing a `SyntaxWarning: invalid escape sequence` -- fixed by
+  declaring it `r"""..."""`; verified fixed by re-running the full suite
+  with `-W error::SyntaxWarning`, not just visual inspection. (2) An
+  early manual test embedded a non-ASCII character directly into a
+  `data:text/html,...` URL and got back corrupted text -- not a
+  detector bug, but the same class of `data:` URL fragility as
+  Milestone 20's `#`-fragment trap, just a different manifestation
+  (character encoding, not URL syntax); resolved by using a real
+  temporary file with an explicit UTF-8 charset for the regression
+  tests instead.
 - `presentation/cli/main.py`: the top-level exception handler never
   caught plain `ValueError`, even though every `WebsiteConnector`
   implementation (and `BrowserAutomationEngine.evaluate()`'s own

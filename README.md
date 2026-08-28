@@ -81,7 +81,7 @@ python -m playwright install chromium
 pytest tests/unit -v
 ```
 
-365 tests, covering domain models, configuration/logging, the database
+369 tests, covering domain models, configuration/logging, the database
 layer, all six repositories, core use cases, the CLI, browser automation
 including form field detection/autofill/resume upload/the human review
 gate (run against a real headless Chromium instance and a real local
@@ -92,9 +92,9 @@ via a fake client, no real API calls, and each selectable via
 `--provider`), AI-generated cover letters/application answers/resume
 recommendations, three website connectors (`GreenhouseConnector`,
 `LeverConnector`, `WorkdayConnector`, each verified against real
-Chromium), and the connector registry that actually wires them into
-`jaap application review`, proven both by hand and via a comprehensive
-end-to-end test covering the full application flow.
+Chromium), the connector registry wiring them into `jaap application
+review`, and label-detection fixes found by validating against a real,
+live job posting.
 
 ## Tech Stack
 
