@@ -9,6 +9,28 @@ which it will move to [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- `docs/adr/0026-eeo-exclusion-and-fill-resilience.md`: two more
+  real-world-validation findings from the same Lever session, the more
+  serious of the two so far. An EEO voluntary self-identification
+  **signature** field (a legal attestation) got auto-matched with the
+  applicant's real name after the implicit-label fix correctly resolved
+  its real label ("Full Name") -- which happened to exactly collide with
+  the ordinary full-name synonym set. Fixed structurally, not by tweaking
+  labels again.
+- `PlaywrightFormFieldDetector`: any field whose `name` starts with
+  `eeo[`/`eeo_`/`eeo-` (case-insensitive) now always has `selector=None`
+  at detection time, the same safety pattern used for Workday's
+  ARIA-combobox fields (ADR-0023) -- guarantees such a field can never
+  be auto-matched or filled regardless of what its label says, verified
+  directly. Still detected and labeled, so it still surfaces for human
+  review rather than disappearing from the report.
+- `AutofillApplicationUseCase.execute()`: a single matched field's fill
+  attempt failing (e.g. a real, conditionally-hidden field found on a
+  live posting) no longer aborts the whole run -- it's now demoted to
+  "needs your manual review" and logged as a warning (the first real
+  use of this project's logging infrastructure, configured since
+  Milestone 3), while every other field and the screenshot are still
+  produced.
 - `docs/adr/0025-implicit-label-detection.md`: the first fix in this
   project's history driven by validating against a real, live website
   rather than documentation. Ran `jaap application review` against a

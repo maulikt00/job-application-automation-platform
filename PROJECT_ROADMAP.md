@@ -347,7 +347,24 @@ of Milestones 20-23 had done.
   field (no `label`, no `aria-label`, sibling-only text) would need a
   meaningfully more fragile "nearest sibling text" heuristic -- not
   attempted without more evidence.
-- ⬜ Lever, remaining fields (custom application questions, EEO block)
+- ✅ **Lever, second pass** ([ADR-0026](docs/adr/0026-eeo-exclusion-and-fill-resilience.md)):
+  re-ran `application review` after the label fix above and found a
+  more serious issue -- an EEO voluntary self-identification
+  **signature** field (a legal attestation) got auto-matched and an
+  attempt was made to fill it with the applicant's real name, because
+  its real label ("Full Name," the standard federal CC-305 form's own
+  wording) now correctly resolved and happened to exactly match the
+  ordinary full-name synonym set. Fixed structurally: any field named
+  `eeo[...]` now always has `selector=None` at detection time (the same
+  safety pattern already used for Workday's ARIA-combobox fields,
+  ADR-0023), guaranteeing it can never be auto-filled regardless of
+  label text. A second, more general problem was fixed alongside it:
+  that one field's fill failure (it also happened to be conditionally
+  hidden) had aborted the entire review with no report or screenshot at
+  all -- `AutofillApplicationUseCase` now demotes a failing field to
+  "needs review" and continues, so one bad field can no longer take
+  down an otherwise-successful run.
+- ⬜ Lever, remaining fields (custom application questions)
 - ⬜ Greenhouse, live posting
 - ⬜ Workday, live posting
 
