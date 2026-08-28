@@ -13,10 +13,22 @@ it's added now that resume upload is in scope.
 Never submits the application -- there is no code path here that could
 even attempt it. Submission is Milestone 12's human review gate,
 unconditionally.
+
+A single field's fill attempt failing (e.g. a real, conditionally-hidden
+field that isn't actionable yet) no longer aborts the whole run --
+found via real-world validation (2026-08, see ADR-0026): on a real
+Lever posting, one hidden field's fill() call timing out after 30
+seconds previously propagated all the way up, meaning the CLI produced
+no report and no screenshot at all, for a page where every OTHER field
+had been detected and matched correctly. A field that fails to fill is
+now demoted to `unmatched` (the same "needs your manual review" bucket
+a field with no match at all lands in) rather than crashing the entire
+review.
 """
 
 from __future__ import annotations
 
+import logging
 from pathlib import Path
 
 from jaap.application.exceptions import ProfileNotFoundError, ResumeNotFoundError
@@ -32,9 +44,12 @@ from jaap.application.interfaces.repositories import (
     ProfileRepository,
     ResumeRepository,
 )
+from jaap.domain.exceptions import BrowserAutomationError
 from jaap.domain.models import ProfileId, ResumeId
 
 _CHECKBOX_LIKE_TYPES = frozenset({"checkbox", "radio"})
+
+logger = logging.getLogger(__name__)
 
 
 class AutofillApplicationUseCase:
@@ -80,10 +95,29 @@ class AutofillApplicationUseCase:
         detected_fields = self._form_field_detector.detect_fields()
         result = self._field_matcher.match(detected_fields, profile, answers, resume)
 
+        successfully_filled: list[MatchedField] = []
+        still_needs_review = list(result.unmatched)
         for matched in result.matched:
-            self._apply_fill(matched)
+            try:
+                self._apply_fill(matched)
+            except BrowserAutomationError as exc:
+                # Demoted to "needs review", not re-raised: one field
+                # failing to fill (a real example found via validation --
+                # a conditionally-hidden field not yet actionable) should
+                # not prevent every other successfully-matched field on
+                # the page from being reported, or the review's
+                # screenshot from ever being taken at all.
+                logger.warning(
+                    "Could not fill matched field %r (selector=%r): %s",
+                    matched.field.name,
+                    matched.field.selector,
+                    exc,
+                )
+                still_needs_review.append(matched.field)
+            else:
+                successfully_filled.append(matched)
 
-        return result
+        return FieldMatchResult(matched=successfully_filled, unmatched=still_needs_review)
 
     def _apply_fill(self, matched: MatchedField) -> None:
         field = matched.field

@@ -248,3 +248,112 @@ def test_resume_is_none_when_resume_id_is_omitted() -> None:
     use_case.execute(profile.id)
 
     assert captured["resume"] is None
+
+
+# The tests below cover a real-world-validation-found fix (ADR-0026): a
+# single matched field's fill() call failing (e.g. a genuinely hidden,
+# not-yet-actionable field found on a real Lever posting) must not
+# abort the whole autofill run -- every other successfully-filled field
+# should still be reported, and the failed field should be demoted to
+# "needs your manual review" rather than crashing execute() entirely.
+
+
+def test_a_field_that_fails_to_fill_is_demoted_to_unmatched() -> None:
+    profile_repo = FakeProfileRepository()
+    profile = Profile(id=new_profile_id(), full_name="A", email="a@example.com")
+    profile_repo.save(profile)
+
+    ok_field = DetectedField(tag="input", field_type="text", name="ok", selector="#ok")
+    failing_field = DetectedField(
+        tag="input", field_type="text", name="hidden", selector="#hidden"
+    )
+
+    class FixedMatcher:
+        def match(self, fields, profile, answers, resume=None):
+            return FieldMatchResult(
+                matched=[
+                    MatchedField(field=ok_field, value="fine", source="test"),
+                    MatchedField(field=failing_field, value="also fine", source="test"),
+                ],
+                unmatched=[],
+            )
+
+    engine = FakeBrowserEngine(fail_on_selectors=frozenset({"#hidden"}))
+    use_case = AutofillApplicationUseCase(
+        browser_engine=engine,
+        form_field_detector=FakeFormFieldDetector([]),
+        field_matcher=FixedMatcher(),
+        profile_repository=profile_repo,
+        answer_repository=FakeAnswerRepository(),
+        resume_repository=FakeResumeRepository(),
+    )
+
+    result = use_case.execute(profile.id)
+
+    assert [m.field.name for m in result.matched] == ["ok"]
+    assert [f.name for f in result.unmatched] == ["hidden"]
+    assert engine.filled == [("#ok", "fine")]  # the failing field was never recorded as filled
+
+
+def test_a_failing_field_is_added_alongside_any_already_unmatched_fields() -> None:
+    profile_repo = FakeProfileRepository()
+    profile = Profile(id=new_profile_id(), full_name="A", email="a@example.com")
+    profile_repo.save(profile)
+
+    already_unmatched = DetectedField(tag="input", field_type="text", name="mystery", selector=None)
+    failing_field = DetectedField(
+        tag="input", field_type="text", name="hidden", selector="#hidden"
+    )
+
+    class FixedMatcher:
+        def match(self, fields, profile, answers, resume=None):
+            return FieldMatchResult(
+                matched=[MatchedField(field=failing_field, value="x", source="test")],
+                unmatched=[already_unmatched],
+            )
+
+    engine = FakeBrowserEngine(fail_on_selectors=frozenset({"#hidden"}))
+    use_case = AutofillApplicationUseCase(
+        browser_engine=engine,
+        form_field_detector=FakeFormFieldDetector([]),
+        field_matcher=FixedMatcher(),
+        profile_repository=profile_repo,
+        answer_repository=FakeAnswerRepository(),
+        resume_repository=FakeResumeRepository(),
+    )
+
+    result = use_case.execute(profile.id)
+
+    assert result.matched == []
+    assert {f.name for f in result.unmatched} == {"mystery", "hidden"}
+
+
+def test_all_fields_succeeding_is_unaffected_by_the_resilience_change() -> None:
+    # Regression check: the ordinary, all-succeed case must behave
+    # exactly as before this fix.
+    profile_repo = FakeProfileRepository()
+    profile = Profile(id=new_profile_id(), full_name="A", email="a@example.com")
+    profile_repo.save(profile)
+
+    field = DetectedField(tag="input", field_type="text", name="ok", selector="#ok")
+
+    class FixedMatcher:
+        def match(self, fields, profile, answers, resume=None):
+            return FieldMatchResult(
+                matched=[MatchedField(field=field, value="fine", source="test")], unmatched=[]
+            )
+
+    engine = FakeBrowserEngine()
+    use_case = AutofillApplicationUseCase(
+        browser_engine=engine,
+        form_field_detector=FakeFormFieldDetector([]),
+        field_matcher=FixedMatcher(),
+        profile_repository=profile_repo,
+        answer_repository=FakeAnswerRepository(),
+        resume_repository=FakeResumeRepository(),
+    )
+
+    result = use_case.execute(profile.id)
+
+    assert [m.field.name for m in result.matched] == ["ok"]
+    assert result.unmatched == []
