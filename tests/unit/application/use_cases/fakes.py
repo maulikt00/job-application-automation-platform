@@ -16,6 +16,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from jaap.domain.exceptions import BrowserAutomationError
 from jaap.domain.models import (
     Answer,
     AnswerId,
@@ -141,25 +142,40 @@ class FakeBrowserEngine:
     upload_file/screenshot call it receives, so use case dispatch logic
     can be asserted on directly without a real browser. Only implements
     the methods use cases actually call -- launch/navigate/evaluate/close
-    aren't needed for these tests."""
+    aren't needed for these tests.
 
-    def __init__(self) -> None:
+    `fail_on_selectors` (Milestone 23-adjacent real-world-validation fix,
+    ADR-0026): an optional set of selectors that should raise
+    BrowserAutomationError instead of succeeding, for testing that a
+    single field's fill failure doesn't abort the whole autofill run.
+    """
+
+    def __init__(self, fail_on_selectors: frozenset[str] = frozenset()) -> None:
         self.filled: list[tuple[str, str]] = []
         self.checked: list[tuple[str, bool]] = []
         self.selected: list[tuple[str, str]] = []
         self.uploaded: list[tuple[str, str]] = []
         self.screenshots: list[Path] = []
+        self._fail_on_selectors = fail_on_selectors
+
+    def _maybe_fail(self, selector: str) -> None:
+        if selector in self._fail_on_selectors:
+            raise BrowserAutomationError(f"Simulated failure for {selector!r}")
 
     def fill(self, selector: str, value: str) -> None:
+        self._maybe_fail(selector)
         self.filled.append((selector, value))
 
     def check(self, selector: str, checked: bool) -> None:
+        self._maybe_fail(selector)
         self.checked.append((selector, checked))
 
     def select_option(self, selector: str, value: str) -> None:
+        self._maybe_fail(selector)
         self.selected.append((selector, value))
 
     def upload_file(self, selector: str, file_path: Path) -> None:
+        self._maybe_fail(selector)
         # .as_posix(), not str(): this is a test double used purely for
         # assertions -- it has no reason to render platform-dependent
         # separators (backslashes on Windows) the way the real
