@@ -28,9 +28,9 @@ _APPLY_FORM_HTML = """
 <html><body>
   <form>
     <label for="legalName">Legal Name</label>
-    <input id="legalName" type="text" name="legalName">
+    <input id="legalName" type="text" name="legalName" data-automation-id="legalNameSection_input1">
     <label for="email">Email</label>
-    <input id="email" type="email" name="email">
+    <input id="email" type="email" name="email" data-automation-id="email">
     <div id="countryLabel">Country</div>
     <div role="combobox" aria-labelledby="countryLabel" aria-required="true"
          data-automation-id="countryDropdown">United States</div>
@@ -208,7 +208,7 @@ _MODAL_POSTING_HTML = """
     });
     document.getElementById('manual_btn').addEventListener('click', function () {
       document.getElementById('form_container').innerHTML =
-        '<form><input type="text" id="legalName"></form>';
+        '<form><input type="text" id="legalName" data-automation-id="legalNameSection_input1"></form>';
     });
   </script>
 </body></html>
@@ -379,3 +379,53 @@ def test_navigate_continues_past_a_manual_click_exception_and_still_detects_sign
 
     with pytest.raises(ValueError, match="requires creating an account or signing in"):
         connector.navigate_to_application_form(engine)
+
+
+# The test below covers a real-world-validation-found fix (ADR-0033):
+# the original "is a form present" check (any input/combobox anywhere)
+# is far too weak against a real corporate site. NVIDIA's own posting
+# page had a nav search box, a country selector, and a OneTrust
+# cookie-consent widget's own checkboxes -- all genuinely present
+# before any Apply interaction -- causing the check to falsely report
+# "form found" without ever attempting the Apply flow. This reproduces
+# that exact structure (the real field names/ids observed, not
+# invented) to confirm the fix correctly rejects it.
+
+
+def test_field_present_rejects_generic_site_chrome_without_automation_ids(
+    settings: Settings, connector: WebsiteConnector, tmp_path
+) -> None:
+    docroot = tmp_path / "chrome_docroot"
+    docroot.mkdir()
+    (docroot / "index.html").write_text(
+        """
+        <html><body>
+          <input type="text" id="nav-search" name="q" placeholder="Search">
+          <div id="cookie-consent">
+            <input type="checkbox" id="ot-group-id-C0002">
+            <input type="checkbox" id="ot-group-id-C0003">
+          </div>
+          <select id="country-selector"><option>United States</option></select>
+          <h1>Software Engineer</h1>
+        </body></html>
+        """
+    )
+    with PlaywrightBrowserEngine(settings) as engine:
+        engine.navigate(f"file://{docroot / 'index.html'}")
+
+        assert connector._field_present(engine) is False
+
+
+def test_field_present_recognizes_a_field_with_a_real_automation_id(
+    settings: Settings, connector: WebsiteConnector, tmp_path
+) -> None:
+    docroot = tmp_path / "real_field_docroot"
+    docroot.mkdir()
+    (docroot / "index.html").write_text(
+        '<html><body><input type="text" id="legalName" '
+        'data-automation-id="legalNameSection_input1"></body></html>'
+    )
+    with PlaywrightBrowserEngine(settings) as engine:
+        engine.navigate(f"file://{docroot / 'index.html'}")
+
+        assert connector._field_present(engine) is True
