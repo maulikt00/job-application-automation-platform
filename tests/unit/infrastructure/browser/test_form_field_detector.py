@@ -364,3 +364,58 @@ def test_visible_status_text_is_still_included(tmp_path) -> None:
         fields = PlaywrightFormFieldDetector(engine).detect_fields()
 
     assert fields[0].label == "Resume Success!"
+
+
+# The tests below cover a fifth real-world-validation-found fix
+# (ADR-0030, found while re-checking Greenhouse's id-only frontend from
+# ADR-0029): a field's reported `name` previously came from `el.name`
+# only, so every field on that real frontend (which sets `id`, never
+# `name`) reported `name=None` -- making the CLI's "needs your manual
+# review" list unreadable for several fields that also had no label.
+
+
+def test_name_falls_back_to_id_when_name_attribute_is_absent(tmp_path) -> None:
+    form = tmp_path / "id_only.html"
+    form.write_text(
+        '<html><head><meta charset="utf-8"></head>'
+        '<body><input type="text" id="first_name" aria-label="First Name"></body></html>',
+        encoding="utf-8",
+    )
+    settings = Settings(_env_file=None)
+    with PlaywrightBrowserEngine(settings) as engine:
+        engine.navigate(f"file://{form}")
+        fields = PlaywrightFormFieldDetector(engine).detect_fields()
+
+    assert fields[0].name == "first_name"
+
+
+def test_name_attribute_still_takes_priority_when_present(tmp_path) -> None:
+    # Regression check: a field with a real `name` must keep reporting
+    # it, not switch to `id`, if both happen to be present.
+    form = tmp_path / "both.html"
+    form.write_text(
+        '<html><head><meta charset="utf-8"></head>'
+        '<body><input type="text" id="different_id" name="real_name"></body></html>',
+        encoding="utf-8",
+    )
+    settings = Settings(_env_file=None)
+    with PlaywrightBrowserEngine(settings) as engine:
+        engine.navigate(f"file://{form}")
+        fields = PlaywrightFormFieldDetector(engine).detect_fields()
+
+    assert fields[0].name == "real_name"
+
+
+def test_name_is_still_none_when_neither_name_nor_id_is_present(tmp_path) -> None:
+    form = tmp_path / "neither.html"
+    form.write_text(
+        '<html><head><meta charset="utf-8"></head>'
+        '<body><input type="text"></body></html>',
+        encoding="utf-8",
+    )
+    settings = Settings(_env_file=None)
+    with PlaywrightBrowserEngine(settings) as engine:
+        engine.navigate(f"file://{form}")
+        fields = PlaywrightFormFieldDetector(engine).detect_fields()
+
+    assert fields[0].name is None
