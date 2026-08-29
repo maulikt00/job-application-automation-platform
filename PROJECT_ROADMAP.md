@@ -435,7 +435,21 @@ of Milestones 20-23 had done.
   a confusing generic one. Whether this authentication requirement is
   typical of Workday generally or specific to this one tenant remains
   unknown -- a genuinely open question, not resolved by this fix.
-- ⬜ Workday, try a different tenant to see if the sign-in requirement is universal
+- ✅ **Workday, second pass** ([ADR-0032](docs/adr/0032-workday-click-timing.md)):
+  tested a second, independent tenant (NVIDIA's Workday careers site) to
+  find out whether the sign-in wall was universal or specific to
+  Workday's own site. **Confirmed universal on this second tenant
+  too** -- "Apply Manually" led to the identical mandatory
+  account-creation step. Also found and fixed a genuinely separate,
+  fixable bug along the way: the "Apply Manually" click itself
+  sometimes reported a Playwright timeout even though it had actually
+  succeeded (confirmed directly: the URL had already changed to the
+  expected destination despite the raised exception) -- a real
+  navigation-during-click timing quirk, not a sign the click failed.
+  Fixed by catching that specific exception and proceeding to check the
+  resulting page state regardless, so the correct "requires sign-in"
+  message is now reported reliably rather than depending on real-world
+  response-time variance.
 
 ## Phase 5 — Platform & Scale (Future)
 
