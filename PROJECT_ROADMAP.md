@@ -380,7 +380,18 @@ of Milestones 20-23 had done.
   needs one more live re-check to confirm fully.
 - ⬜ Lever, re-check resume/location labels against the live posting
 - ⬜ Lever, remaining fields (custom application questions)
-- ⬜ Greenhouse, live posting
+- ✅ **Greenhouse, first pass** ([ADR-0028](docs/adr/0028-greenhouse-form-polling.md)):
+  the first real Greenhouse posting tested (`job-boards.greenhouse.io`)
+  failed immediately -- `GreenhouseConnector`'s own "form not found"
+  error, even though a screenshot confirmed the form was genuinely on
+  the same page with no separate "Apply" step needed, exactly matching
+  the connector's original assumption. Root cause: a timing issue, not
+  a structural one -- the page's own "load" event fires before the form
+  finishes rendering. Fixed by polling for the form's presence (up to
+  5 seconds) instead of checking exactly once; verified against a
+  direct reproduction of the real failure (a form injected via
+  `setTimeout`, no "Apply" element at all).
+- ⬜ Greenhouse, re-check after the polling fix
 - ⬜ Workday, live posting
 
 ## Phase 5 — Platform & Scale (Future)

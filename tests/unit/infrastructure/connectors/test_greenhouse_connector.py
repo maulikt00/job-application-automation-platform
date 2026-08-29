@@ -48,6 +48,25 @@ _DESCRIPTION_ONLY_HTML = """
 </body></html>
 """
 
+# Found via real-world validation against a live Greenhouse posting
+# (job-boards.greenhouse.io, 2026-08): the application form is on the
+# same page from the start (no separate "Apply" click needed at all),
+# but does not finish rendering by the time the page's own "load" event
+# fires -- a timing issue, not the "description-only, click reveals it"
+# structure _DESCRIPTION_ONLY_HTML above models. See ADR-0028.
+_DELAYED_RENDER_HTML = """
+<html><body>
+  <h1>Software Engineer at Acme</h1>
+  <div id="form_container"></div>
+  <script>
+    setTimeout(function () {
+      document.getElementById('form_container').innerHTML =
+        '<form><input type="text" name="first_name"></form>';
+    }, 1500);
+  </script>
+</body></html>
+"""
+
 
 @pytest.fixture
 def settings() -> Settings:
@@ -126,3 +145,21 @@ def test_get_field_detector_detects_the_real_greenhouse_style_fields(
 
         names = {f.name for f in fields}
         assert names == {"first_name", "last_name", "email"}
+
+
+def test_navigate_to_application_form_waits_for_a_delayed_render(
+    settings: Settings, connector: WebsiteConnector, tmp_path
+) -> None:
+    # A real bug found via live-site validation (ADR-0028): the form is
+    # on the same page from the start, with no "Apply" element to click
+    # at all, but takes a moment to actually render after the page's own
+    # "load" event fires. Checking exactly once, immediately after
+    # navigation, previously raised a false "form not found" error here.
+    url = _write_html(tmp_path, "delayed_render.html", _DELAYED_RENDER_HTML)
+    with PlaywrightBrowserEngine(settings) as engine:
+        engine.navigate(url)
+        assert not engine.evaluate('document.querySelector(\'input[name="first_name"]\') !== null')
+
+        connector.navigate_to_application_form(engine)  # must not raise
+
+        assert engine.evaluate('document.querySelector(\'input[name="first_name"]\') !== null')

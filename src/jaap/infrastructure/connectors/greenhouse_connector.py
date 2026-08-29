@@ -40,6 +40,8 @@ silently fail partway through it.
 
 from __future__ import annotations
 
+import time
+
 from jaap.application.interfaces.browser_engine import BrowserAutomationEngine
 from jaap.application.interfaces.form_field_detector import FormFieldDetector
 from jaap.domain.models.job_posting import JobPlatform
@@ -48,6 +50,17 @@ from jaap.infrastructure.browser.form_field_detector import PlaywrightFormFieldD
 # Taken directly from Greenhouse's own Job Board API documentation's
 # example application form HTML -- not invented.
 _FIRST_NAME_FIELD_SELECTOR = 'input[name="first_name"]'
+
+# Found via real-world validation against a live Greenhouse posting
+# (2026-08): the application form is present on the same page from the
+# start (matching this connector's original assumption), but does not
+# necessarily finish rendering by the time engine.navigate()'s "load"
+# wait condition is satisfied -- a timing issue, not a structural one.
+# Polling briefly for the form to appear, rather than checking exactly
+# once immediately after navigation, accounts for this without assuming
+# a specific render delay.
+_FORM_POLL_ATTEMPTS = 10
+_FORM_POLL_DELAY_SECONDS = 0.5
 
 
 class GreenhouseConnector:
@@ -63,17 +76,20 @@ class GreenhouseConnector:
     def navigate_to_application_form(self, engine: BrowserAutomationEngine) -> None:
         """Greenhouse-hosted job post URLs typically serve the job
         description and the application form on the same page -- so the
-        common case is a no-op. As a defensive fallback (some
-        configurations may show the description first), this clicks a
-        visible "Apply" control via Playwright's own text-matching
-        selector syntax (`text=Apply`, not a hand-rolled JS text search)
-        and re-checks afterward, raising a clear error if the form still
-        isn't present rather than silently continuing.
+        common case is a no-op, once the form has actually finished
+        rendering (which a real live posting confirmed can genuinely lag
+        behind the page's own "load" event -- see this module's
+        docstring). As a defensive fallback (some configurations may
+        show the description first, requiring an explicit step), this
+        clicks a visible "Apply" control via Playwright's own
+        text-matching selector syntax (`text=Apply`, not a hand-rolled
+        JS text search) and polls again afterward, raising a clear error
+        if the form still isn't present rather than silently continuing.
         """
-        if self._form_is_present(engine):
+        if self._wait_for_form(engine):
             return
         engine.click("text=Apply")
-        if not self._form_is_present(engine):
+        if not self._wait_for_form(engine):
             raise ValueError(
                 "Clicked an 'Apply' element, but no Greenhouse application "
                 f"form ({_FIRST_NAME_FIELD_SELECTOR}) was found afterward -- "
@@ -86,6 +102,13 @@ class GreenhouseConnector:
         # from Greenhouse's own API docs) -- nothing platform-specific
         # to detect, so the generic detector is used unchanged.
         return PlaywrightFormFieldDetector(engine)
+
+    def _wait_for_form(self, engine: BrowserAutomationEngine) -> bool:
+        for _ in range(_FORM_POLL_ATTEMPTS):
+            if self._form_is_present(engine):
+                return True
+            time.sleep(_FORM_POLL_DELAY_SECONDS)
+        return False
 
     def _form_is_present(self, engine: BrowserAutomationEngine) -> bool:
         return bool(

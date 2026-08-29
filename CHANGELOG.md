@@ -9,6 +9,17 @@ which it will move to [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- `docs/adr/0028-greenhouse-form-polling.md`: the first real-world
+  validation finding against Greenhouse. A live posting's application
+  form was genuinely on the same page (matching `GreenhouseConnector`'s
+  original design), but hadn't finished rendering by the time the page's
+  "load" event fired, causing an immediate false "form not found" error.
+  Fixed by polling for the form's presence (up to 5 seconds) instead of
+  checking exactly once; verified against a direct reproduction of the
+  real failure.
+- `GreenhouseConnector.navigate_to_application_form()` now polls (10
+  attempts, 0.5s apart) before falling back to the existing "click
+  Apply" path or raising its error.
 - `docs/adr/0027-visible-text-label-extraction.md`: a fourth
   real-world-validation finding from the same Lever session. After the
   prior two fixes, `resume` and `location` labels were still noisy --
