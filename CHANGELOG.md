@@ -9,6 +9,16 @@ which it will move to [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- `docs/adr/0030-name-fallback-to-id.md`: a fifth real-world-validation
+  finding, directly following ADR-0029. `email` correctly auto-filled
+  on the live Greenhouse posting, but every field's reported identifier
+  was `None` (including the matched one), since `DetectedField.name`
+  only ever came from `el.name`, never `el.id`. Fixed by falling back to
+  `id`, matching the detector's own existing selector-computation
+  priority -- verified this introduces no new, unintended matches for
+  the real fields observed before relying on it.
+- `PlaywrightFormFieldDetector`'s detection script now reports
+  `el.name || el.id || null` for a field's name, not `el.name || null`.
 - `docs/adr/0029-greenhouse-id-only-frontend.md`: a second real
   Greenhouse frontend variant found via live validation, distinct from
   ADR-0028's timing fix. A real posting's application form uses `id` on

@@ -406,7 +406,18 @@ of Milestones 20-23 had done.
   and a non-`email` `type`. `first_name`/`last_name` correctly remain
   unmatched, per `ExactFieldMatcher`'s own pre-existing, documented
   choice not to split `full_name`.
-- ⬜ Greenhouse, re-check after the id-only-frontend fix
+- ✅ **Greenhouse, third pass** ([ADR-0030](docs/adr/0030-name-fallback-to-id.md)):
+  after ADR-0029's fix, the review completed cleanly and `email`
+  correctly auto-filled -- but the printed report showed `None` as the
+  identifier for every single field (including the matched one), since
+  `DetectedField.name` only ever came from `el.name`, never `el.id`, on
+  a frontend that sets no `name` attributes at all. Fixed by falling
+  back to `el.id`, matching `selectorFor()`'s own existing priority.
+  Verified this introduces no new, unintended auto-fill matches for the
+  real fields observed before relying on it. Real Greenhouse validation
+  now stands on genuinely solid footing: platform detection, timing,
+  frontend-variant recognition, and reporting all confirmed against a
+  live posting.
 - ⬜ Workday, live posting
 
 ## Phase 5 — Platform & Scale (Future)
