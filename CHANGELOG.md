@@ -9,6 +9,19 @@ which it will move to [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- `docs/adr/0033-workday-field-presence-false-positive.md`: a more
+  foundational bug than the prior Workday findings -- the "is a form
+  present" check matched any input/combobox anywhere on the page, and
+  a real NVIDIA posting had a nav search box, cookie-consent checkboxes,
+  and a country selector already present before any Apply interaction,
+  causing false "success" reports without the Apply flow ever running.
+  Fixed by requiring Workday's own `data-automation-id` attribute --
+  stated honestly as still unverified against a real Workday form's
+  actual markup, since every real attempt has hit the sign-in wall
+  first.
+- `WorkdayConnector._field_present()` now requires
+  `[data-automation-id]` on matched fields, not just any
+  input/select/textarea/combobox.
 - `docs/adr/0032-workday-click-timing.md`: confirmed Workday's
   mandatory sign-in wall (ADR-0031) on a second, independent tenant
   (NVIDIA's Workday careers site) -- real evidence this is a recurring

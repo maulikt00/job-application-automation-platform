@@ -450,6 +450,19 @@ of Milestones 20-23 had done.
   resulting page state regardless, so the correct "requires sign-in"
   message is now reported reliably rather than depending on real-world
   response-time variance.
+- ✅ **Workday, third pass** ([ADR-0033](docs/adr/0033-workday-field-presence-false-positive.md)):
+  a MORE foundational bug than either prior finding -- the "is a form
+  present" check matched *any* input/combobox anywhere on the page,
+  and NVIDIA's real posting page had a nav search box, a country
+  selector, and OneTrust cookie-consent checkboxes already present
+  before any Apply interaction at all, causing the connector to falsely
+  report success without ever attempting the Apply flow. Fixed by
+  additionally requiring Workday's own `data-automation-id` attribute
+  (the same marker already used, with the same honest, unconfirmed
+  caveat, for combobox naming in ADR-0023). **Still an open,
+  acknowledged gap**: this has never actually been verified against a
+  real Workday form's markup, since every real attempt has hit the
+  sign-in wall first -- stated honestly, not resolved by this fix.
 
 ## Phase 5 — Platform & Scale (Future)
 
