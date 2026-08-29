@@ -17,8 +17,17 @@ examples, not assumption -- verified directly before writing any code:
     `PlaywrightFormFieldDetector` unchanged; there is nothing
     Greenhouse-specific to detect that the generic detector would miss.
   - **A real, confirmed marker for "is the application form present"**:
-    `input[name="first_name"]`, taken directly from Greenhouse's own API
-    documentation's example form HTML, not invented.
+    `input[name="first_name"]` (Greenhouse's documented, older
+    frontend) OR `input#first_name` (a newer, real frontend found via
+    live-site validation, 2026-08 -- see ADR-0029: at least one real
+    `job-boards.greenhouse.io` posting used `id="first_name"` with NO
+    `name` attribute at all on any field -- a structurally different
+    implementation from the one Greenhouse's own API docs describe,
+    served under the same domain this connector already recognized).
+    Both are checked; the generic detector still needs no
+    Greenhouse-specific variant, since its own `selectorFor()` already
+    checks `id` before `name` and handles either case correctly on its
+    own.
 
 **A real, honest scope limitation, stated here rather than glossed
 over**: this connector only supports DIRECTLY-HOSTED Greenhouse job
@@ -48,8 +57,11 @@ from jaap.domain.models.job_posting import JobPlatform
 from jaap.infrastructure.browser.form_field_detector import PlaywrightFormFieldDetector
 
 # Taken directly from Greenhouse's own Job Board API documentation's
-# example application form HTML -- not invented.
-_FIRST_NAME_FIELD_SELECTOR = 'input[name="first_name"]'
+# example application form HTML -- not invented. Extended to also check
+# `id="first_name"` after live-site validation found a real posting
+# using only `id`, never `name`, on any field (see this module's
+# docstring and ADR-0029).
+_FIRST_NAME_FIELD_SELECTOR = 'input[name="first_name"], input#first_name'
 
 # Found via real-world validation against a live Greenhouse posting
 # (2026-08): the application form is present on the same page from the

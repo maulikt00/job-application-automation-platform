@@ -9,6 +9,19 @@ which it will move to [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- `docs/adr/0029-greenhouse-id-only-frontend.md`: a second real
+  Greenhouse frontend variant found via live validation, distinct from
+  ADR-0028's timing fix. A real posting's application form uses `id` on
+  every field and `name` on none of them -- a structurally different
+  implementation from the one Greenhouse's own API docs describe.
+  Found through a genuine, iterative diagnostic process (iframe check,
+  wait-longer check, click-and-dump check, then a full field dump)
+  rather than a single guess.
+- `GreenhouseConnector`'s form-presence check now recognizes both
+  `input[name="first_name"]` and `input#first_name`. The generic
+  detector and matcher needed no changes -- confirmed directly with new
+  tests, including one proving `email` still matches via its label even
+  with no `name` attribute and a non-`email` `type`.
 - `docs/adr/0028-greenhouse-form-polling.md`: the first real-world
   validation finding against Greenhouse. A live posting's application
   form was genuinely on the same page (matching `GreenhouseConnector`'s
