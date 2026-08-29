@@ -50,6 +50,22 @@ WorkdayFormFieldDetector's own module docstring for the latter.
     even though nothing is actually wrong. This is caught and treated
     as informational, not a hard failure -- see the try/except in
     `navigate_to_application_form()` below.
+  - **A third, more foundational bug found on a real posting's page
+    with heavy site chrome (NVIDIA's, 2026-08, see ADR-0033)**: the
+    original "is a form present" check (`input, [role="combobox"]`
+    anywhere on the page) is far too weak against a real corporate
+    site -- NVIDIA's own posting page had a nav search box, a country
+    selector, and a OneTrust cookie-consent widget's own checkboxes,
+    all genuinely present in the DOM before any Apply interaction at
+    all, causing the check to falsely report "form found" without ever
+    attempting the Apply flow. Fixed by additionally requiring
+    Workday's own `data-automation-id` attribute -- the same marker
+    `WorkdayFormFieldDetector`'s combobox detection already uses, on
+    the same honest, community-sourced (not primary-source-confirmed)
+    confidence basis stated there. This has NOT been verified against
+    an actual, real Workday application form's markup, since every
+    real attempt so far has hit the sign-in wall before reaching one --
+    stated honestly, not glossed over.
   - **Confirmed as genuinely multi-step**: independent sources describe
     "the full Workday application flow (upload, auto-fill form, review,
     submit)" -- multiple stages, not a single page. This connector's
@@ -86,7 +102,10 @@ from jaap.infrastructure.connectors.workday_form_field_detector import (
     WorkdayFormFieldDetector,
 )
 
-_FIELD_PRESENT_SCRIPT = 'document.querySelector(\'input, [role="combobox"]\') !== null'
+_FIELD_PRESENT_SCRIPT = (
+    'document.querySelector(\'input[data-automation-id], select[data-automation-id], '
+    'textarea[data-automation-id], [role="combobox"][data-automation-id]\') !== null'
+)
 
 # A deliberately simple, general signal -- checked only after the real,
 # confirmed Apply-flow attempt below has already failed to reveal any
@@ -162,9 +181,9 @@ class WorkdayConnector:
             )
 
         raise ValueError(
-            "Clicked through Workday's Apply flow, but no <input> or "
-            "combobox element was found afterward -- this page's "
-            "structure may not match WorkdayConnector's assumptions."
+            "Clicked through Workday's Apply flow, but no field with a "
+            "data-automation-id attribute was found afterward -- this "
+            "page's structure may not match WorkdayConnector's assumptions."
         )
 
     def get_field_detector(self, engine: BrowserAutomationEngine) -> FormFieldDetector:
