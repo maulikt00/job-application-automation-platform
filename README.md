@@ -81,7 +81,7 @@ python -m playwright install chromium
 pytest tests/unit -v
 ```
 
-378 tests, covering domain models, configuration/logging, the database
+379 tests, covering domain models, configuration/logging, the database
 layer, all six repositories, core use cases, the CLI, browser automation
 including form field detection/autofill/resume upload/the human review
 gate (run against a real headless Chromium instance and a real local
@@ -94,9 +94,10 @@ recommendations, three website connectors (`GreenhouseConnector`,
 `LeverConnector`, `WorkdayConnector`, each verified against real
 Chromium), the connector registry wiring them into `jaap application
 review`, and a growing set of fixes found by validating against real,
-live job postings (implicit label detection, a structural exclusion for
-EEO/voluntary self-identification fields, per-field autofill
-resilience, and visible-text-only label extraction).
+live job postings on both Lever (implicit label detection, a structural
+exclusion for EEO/voluntary self-identification fields, per-field
+autofill resilience, and visible-text-only label extraction) and
+Greenhouse (form-presence polling for a real rendering-timing issue).
 
 ## Tech Stack
 
