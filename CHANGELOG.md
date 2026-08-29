@@ -9,6 +9,21 @@ which it will move to [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- `docs/adr/0031-workday-signin-wall.md`: the most significant
+  real-world-validation finding so far. Workday's own careers site
+  required clicking through an in-page modal (contradicting the
+  original `/apply`-suffix assumption entirely) and even the most
+  neutral apply option led to a mandatory sign-in wall before any
+  application field could be reached. **JAAP will not automate account
+  creation or sign-in, under any circumstances** -- restated here as a
+  firm, permanent boundary consistent with `SECURITY.md`'s existing
+  statement that browser sessions are never persisted.
+- `WorkdayConnector.navigate_to_application_form()` now attempts the
+  real, confirmed click sequence (Apply -> Apply Manually) as a
+  fallback when the `/apply`-suffix URL doesn't reveal a form, and
+  raises a specific, honest error when that sequence leads to a
+  detected sign-in wall, distinct from the generic "structure doesn't
+  match assumptions" message.
 - `docs/adr/0030-name-fallback-to-id.md`: a fifth real-world-validation
   finding, directly following ADR-0029. `email` correctly auto-filled
   on the live Greenhouse posting, but every field's reported identifier

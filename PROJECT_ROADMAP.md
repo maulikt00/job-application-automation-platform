@@ -418,7 +418,24 @@ of Milestones 20-23 had done.
   now stands on genuinely solid footing: platform detection, timing,
   frontend-variant recognition, and reporting all confirmed against a
   live posting.
-- ⬜ Workday, live posting
+- ✅ **Workday, first pass** ([ADR-0031](docs/adr/0031-workday-signin-wall.md)):
+  the most significant finding of this whole real-world validation
+  effort so far -- not a fixable engineering bug like the Greenhouse/
+  Lever findings, but a genuine platform characteristic. Workday's own
+  careers site required clicking through an in-page "Start Your
+  Application" modal (never a direct URL navigation, contradicting the
+  original `/apply`-suffix assumption), and even the most neutral
+  option ("Apply Manually") led to a mandatory account-creation/sign-in
+  wall before any application field could be reached. **JAAP will not
+  automate account creation or sign-in, under any circumstances** --
+  this is restated as a firm, permanent boundary, not a gap to engineer
+  around. `WorkdayConnector` now attempts the real, confirmed
+  modal-click sequence and, if it leads to a sign-in wall, raises a
+  clear, honest error explaining that JAAP cannot proceed, rather than
+  a confusing generic one. Whether this authentication requirement is
+  typical of Workday generally or specific to this one tenant remains
+  unknown -- a genuinely open question, not resolved by this fix.
+- ⬜ Workday, try a different tenant to see if the sign-in requirement is universal
 
 ## Phase 5 — Platform & Scale (Future)
 
