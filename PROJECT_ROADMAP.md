@@ -391,7 +391,22 @@ of Milestones 20-23 had done.
   5 seconds) instead of checking exactly once; verified against a
   direct reproduction of the real failure (a form injected via
   `setTimeout`, no "Apply" element at all).
-- ⬜ Greenhouse, re-check after the polling fix
+- ✅ **Greenhouse, second pass** ([ADR-0029](docs/adr/0029-greenhouse-id-only-frontend.md)):
+  re-running after ADR-0028's polling fix still failed with the same
+  error. A genuine, iterative diagnostic investigation (checking for
+  iframes, polling without clicking, clicking and dumping page text,
+  then dumping every real field) found the actual cause: this posting's
+  frontend uses `id` on every field and sets `name` on NONE of them --
+  a second, structurally different Greenhouse implementation from the
+  one its own API docs describe (ADR-0021), served under the same
+  domain. Fixed by checking both `name` and `id` for the form-presence
+  marker. The generic detector and matcher needed no changes at all --
+  verified directly, not assumed, including a new test confirming
+  `email` still matches via its label even with no `name` attribute
+  and a non-`email` `type`. `first_name`/`last_name` correctly remain
+  unmatched, per `ExactFieldMatcher`'s own pre-existing, documented
+  choice not to split `full_name`.
+- ⬜ Greenhouse, re-check after the id-only-frontend fix
 - ⬜ Workday, live posting
 
 ## Phase 5 — Platform & Scale (Future)
