@@ -181,3 +181,141 @@ def test_combobox_required_reflects_aria_required(
 
         combobox = next(f for f in fields if f.field_type == "combobox")
         assert combobox.required is True
+
+
+# The tests below cover a real-world-validation-found fix (ADR-0031):
+# Workday's own careers site revealed that the `/apply`-suffix URL alone
+# does not reliably lead to a form -- clicking "Apply" opens an in-page
+# modal (never a navigation) offering several paths, and even the most
+# neutral one ("Apply Manually") can lead to a mandatory sign-in wall.
+# These use a SEPARATE server fixture, since they need `/apply` to also
+# serve real content (an Apply button triggering a modal), not the
+# direct-form content `workday_server` above provides.
+
+
+_MODAL_POSTING_HTML = """
+<html><body>
+  <h1>Software Engineer</h1>
+  <button id="apply_btn">Apply</button>
+  <div id="modal" style="display:none;">
+    <button id="manual_btn">Apply Manually</button>
+  </div>
+  <div id="form_container"></div>
+  <script>
+    document.getElementById('apply_btn').addEventListener('click', function () {
+      document.getElementById('modal').style.display = 'block';
+    });
+    document.getElementById('manual_btn').addEventListener('click', function () {
+      document.getElementById('form_container').innerHTML =
+        '<form><input type="text" id="legalName"></form>';
+    });
+  </script>
+</body></html>
+"""
+
+_MODAL_TO_LOGIN_HTML = """
+<html><body>
+  <h1>Software Engineer</h1>
+  <button id="apply_btn">Apply</button>
+  <div id="modal" style="display:none;">
+    <button id="manual_btn">Apply Manually</button>
+  </div>
+  <script>
+    document.getElementById('apply_btn').addEventListener('click', function () {
+      document.getElementById('modal').style.display = 'block';
+    });
+    document.getElementById('manual_btn').addEventListener('click', function () {
+      window.location.href = 'login.html';
+    });
+  </script>
+</body></html>
+"""
+
+_LOGIN_WALL_HTML = """
+<html><body>
+  <h2>Sign In</h2>
+  <button>Sign in with Google</button>
+  <button>Sign in with email</button>
+</body></html>
+"""
+
+
+@pytest.fixture
+def modal_server(tmp_path: Path):
+    """A server where the /apply path does NOT contain a form directly
+    -- the real form only appears after clicking "Apply" (opens an
+    in-page modal) then "Apply Manually" within it.
+    """
+    docroot = tmp_path / "modal_docroot"
+    posting_dir = docroot / "Acme" / "job" / "posting123"
+    apply_dir = posting_dir / "apply"
+    apply_dir.mkdir(parents=True)
+    (posting_dir / "index.html").write_text(_MODAL_POSTING_HTML)
+    (apply_dir / "index.html").write_text(_MODAL_POSTING_HTML)
+
+    class Handler(SimpleHTTPRequestHandler):
+        def __init__(self, *args, **kwargs) -> None:
+            super().__init__(*args, directory=str(docroot), **kwargs)
+
+        def log_message(self, format: str, *args: object) -> None:
+            pass
+
+    server = HTTPServer(("127.0.0.1", 0), Handler)
+    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    try:
+        yield f"http://127.0.0.1:{server.server_port}/Acme/job/posting123/"
+    finally:
+        server.shutdown()
+        thread.join(timeout=5)
+
+
+@pytest.fixture
+def login_wall_server(tmp_path: Path):
+    """A server where "Apply Manually" leads to a sign-in wall, not a
+    form -- reproducing what Workday's own careers site actually did.
+    """
+    docroot = tmp_path / "login_docroot"
+    posting_dir = docroot / "Acme" / "job" / "posting456"
+    apply_dir = posting_dir / "apply"
+    apply_dir.mkdir(parents=True)
+    (posting_dir / "index.html").write_text(_MODAL_TO_LOGIN_HTML)
+    (apply_dir / "index.html").write_text(_MODAL_TO_LOGIN_HTML)
+    (apply_dir / "login.html").write_text(_LOGIN_WALL_HTML)
+
+    class Handler(SimpleHTTPRequestHandler):
+        def __init__(self, *args, **kwargs) -> None:
+            super().__init__(*args, directory=str(docroot), **kwargs)
+
+        def log_message(self, format: str, *args: object) -> None:
+            pass
+
+    server = HTTPServer(("127.0.0.1", 0), Handler)
+    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    try:
+        yield f"http://127.0.0.1:{server.server_port}/Acme/job/posting456/"
+    finally:
+        server.shutdown()
+        thread.join(timeout=5)
+
+
+def test_navigate_falls_back_to_clicking_apply_then_apply_manually(
+    settings: Settings, connector: WebsiteConnector, modal_server: str
+) -> None:
+    with PlaywrightBrowserEngine(settings) as engine:
+        engine.navigate(modal_server)
+
+        connector.navigate_to_application_form(engine)  # must not raise
+
+        assert engine.evaluate("document.querySelector('#legalName') !== null")
+
+
+def test_navigate_raises_a_clear_error_when_apply_manually_leads_to_a_sign_in_wall(
+    settings: Settings, connector: WebsiteConnector, login_wall_server: str
+) -> None:
+    with PlaywrightBrowserEngine(settings) as engine:
+        engine.navigate(login_wall_server)
+
+        with pytest.raises(ValueError, match="requires creating an account or signing in"):
+            connector.navigate_to_application_form(engine)

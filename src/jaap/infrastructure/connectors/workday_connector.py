@@ -13,13 +13,29 @@ WorkdayFormFieldDetector's own module docstring for the latter.
     `myworkdaysite.com` format. `matches()` checks for the stable
     substrings `myworkdayjobs.com` and `myworkdaysite.com`, not a fixed
     tenant/data-center number.
-  - **The application-form URL**: confirmed from a real, independently
-    scraped Workday job posting example ending in `.../apply` -- the
-    same `/apply`-suffix relationship Lever's own API documents
-    explicitly (ADR-0022). `navigate_to_application_form()` therefore
-    reuses the identical shared logic (`_url_utils.append_apply_path()`),
-    extracted specifically because this pattern is now confirmed for two
-    platforms independently, not coincidentally similar.
+  - **The application-form URL**: a third-party-scraped example
+    suggested a simple `/apply`-suffix relationship (the same pattern
+    Lever's own API documents explicitly, ADR-0022), so
+    `navigate_to_application_form()` tries that first via the shared
+    `_url_utils.append_apply_path()`. Real-world validation against
+    Workday's own careers site (2026-08, see ADR-0031) found this does
+    NOT reveal a form by itself on at least this tenant -- clicking
+    "Apply" instead opens an in-page modal (never a direct navigation)
+    offering several paths: "Autofill with Resume" (Workday's own AI
+    resume-parsing feature, a different thing from JAAP's autofill),
+    "Apply Manually", "Use My Last Application" (requires an existing
+    session), and a third-party redirect option (e.g. "Apply with
+    SEEK"). "Apply Manually" is chosen deliberately as the most neutral
+    of these.
+  - **A real, more fundamental limitation found via this same
+    validation, not merely a bug**: even "Apply Manually" led directly
+    to a mandatory account-creation/sign-in step before any actual
+    application field could be reached. JAAP does not automate account
+    creation or login, under any circumstances -- this is a firm,
+    deliberate boundary, not a gap to be engineered around. See
+    ADR-0031 for the full reasoning and why this may not be fixable
+    without a separate, deliberate decision to support persistent
+    browser sessions (a real architectural change, not attempted here).
   - **Confirmed as genuinely multi-step**: independent sources describe
     "the full Workday application flow (upload, auto-fill form, review,
     submit)" -- multiple stages, not a single page. This connector's
@@ -55,6 +71,21 @@ from jaap.infrastructure.connectors.workday_form_field_detector import (
     WorkdayFormFieldDetector,
 )
 
+_FIELD_PRESENT_SCRIPT = 'document.querySelector(\'input, [role="combobox"]\') !== null'
+
+# A deliberately simple, general signal -- checked only after the real,
+# confirmed Apply-flow attempt below has already failed to reveal any
+# field. Found necessary via live-site validation (ADR-0031): Workday's
+# own careers site required signing in before any application field
+# could be reached, via every path the "Start Your Application" modal
+# offered except a third-party redirect.
+_SIGN_IN_INDICATOR_SCRIPT = r"""
+(() => {
+  const text = document.body.innerText || "";
+  return /sign in|log in|create.{0,10}account/i.test(text);
+})()
+"""
+
 
 class WorkdayConnector:
     """Satisfies application.interfaces.website_connector.WebsiteConnector."""
@@ -67,24 +98,46 @@ class WorkdayConnector:
         return "myworkdayjobs.com" in url or "myworkdaysite.com" in url
 
     def navigate_to_application_form(self, engine: BrowserAutomationEngine) -> None:
-        """Constructs the `/apply` URL from the current page's URL (the
-        same confirmed pattern as LeverConnector, see this module's
-        docstring) and navigates there directly. Only reaches the START
-        of Workday's multi-step application flow -- see this module's
-        docstring for why walking every subsequent step is out of scope,
-        consistent with this project's existing multi-step handling.
+        """First tries the `/apply`-suffix URL pattern (matching
+        LeverConnector's confirmed mechanism) in case it works directly.
+        If not, falls back to the real, confirmed click sequence found
+        via live-site validation (ADR-0031): click "Apply" (opens an
+        in-page modal, not a navigation), then "Apply Manually" (the
+        most neutral of the modal's options -- see this module's
+        docstring). If that still doesn't reveal a form, checks whether
+        the page looks like a sign-in/account-creation wall and raises a
+        clear, specific error if so, rather than the generic
+        "structure doesn't match assumptions" message -- JAAP will not
+        attempt to get past this itself, by design.
         """
         current_url = engine.evaluate("window.location.href")
         apply_url = append_apply_path(current_url)
         if apply_url != current_url:
             engine.navigate(apply_url)
 
-        if not engine.evaluate("document.querySelector('input, [role=\"combobox\"]') !== null"):
+        if self._field_present(engine):
+            return
+
+        engine.click("text=Apply")
+        engine.click("text=Apply Manually")
+
+        if self._field_present(engine):
+            return
+
+        if engine.evaluate(_SIGN_IN_INDICATOR_SCRIPT):
             raise ValueError(
-                f"Navigated to {apply_url!r}, but no <input> or combobox element "
-                "was found afterward -- this page's structure may not match "
-                "WorkdayConnector's assumptions."
+                "This Workday posting requires creating an account or "
+                "signing in before the application form can be reached. "
+                "JAAP does not automate account creation or login, and "
+                "does not persist browser sessions between runs -- this "
+                "posting cannot currently be autofilled by JAAP."
             )
+
+        raise ValueError(
+            "Clicked through Workday's Apply flow, but no <input> or "
+            "combobox element was found afterward -- this page's "
+            "structure may not match WorkdayConnector's assumptions."
+        )
 
     def get_field_detector(self, engine: BrowserAutomationEngine) -> FormFieldDetector:
         # Unlike GreenhouseConnector/LeverConnector, Workday's own
@@ -93,3 +146,6 @@ class WorkdayConnector:
         # unchanged -- see WorkdayFormFieldDetector's own docstring for
         # the honest confidence distinction on exactly what's detected.
         return WorkdayFormFieldDetector(engine)
+
+    def _field_present(self, engine: BrowserAutomationEngine) -> bool:
+        return bool(engine.evaluate(_FIELD_PRESENT_SCRIPT))
