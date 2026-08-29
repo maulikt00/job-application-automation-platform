@@ -170,7 +170,17 @@ _DETECTION_SCRIPT = r"""
     .map((el) => ({
       tag: el.tagName.toLowerCase(),
       field_type: fieldType(el),
-      name: el.name || null,
+      // Falls back to `id` when `name` is absent -- found necessary via
+      // real-world validation against a live Greenhouse posting whose
+      // frontend sets `id` on every field and `name` on none of them
+      // (see ADR-0029/0030): without this, every such field's `name`
+      // was reported as null, making the CLI's "needs your manual
+      // review" list unreadable (several rows had no label either,
+      // leaving literally nothing to identify them by). Matches
+      // selectorFor()'s own existing id-before-name priority, so a
+      // field's reported identifier is consistent with what actually
+      // targets it.
+      name: el.name || el.id || null,
       element_id: el.id || null,
       selector: selectorFor(el),
       label: labelFor(el),

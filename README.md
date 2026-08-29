@@ -81,7 +81,7 @@ python -m playwright install chromium
 pytest tests/unit -v
 ```
 
-382 tests, covering domain models, configuration/logging, the database
+385 tests, covering domain models, configuration/logging, the database
 layer, all six repositories, core use cases, the CLI, browser automation
 including form field detection/autofill/resume upload/the human review
 gate (run against a real headless Chromium instance and a real local
@@ -97,9 +97,9 @@ review`, and a growing set of fixes found by validating against real,
 live job postings on Lever (implicit label detection, a structural
 exclusion for EEO/voluntary self-identification fields, per-field
 autofill resilience, and visible-text-only label extraction) and
-Greenhouse (form-presence polling for a rendering-timing issue, and
-recognizing a second, `id`-only frontend variant with no `name`
-attributes at all).
+Greenhouse (form-presence polling, recognizing a second `id`-only
+frontend variant with no `name` attributes, and a reported-name
+fallback to `id` for readable review reports).
 
 ## Tech Stack
 
