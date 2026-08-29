@@ -67,6 +67,22 @@ _DELAYED_RENDER_HTML = """
 </body></html>
 """
 
+# Found via real-world validation against a SECOND live Greenhouse
+# posting (job-boards.greenhouse.io/remotecom, 2026-08): every field
+# used `id`, never `name` at all -- a structurally different frontend
+# from the one Greenhouse's own API documentation describes (which
+# _FORM_ALREADY_PRESENT_HTML above models), served under the same
+# domain this connector already recognized. See ADR-0029.
+_ID_ONLY_NO_NAME_HTML = """
+<html><body>
+  <form>
+    <input type="text" id="first_name" aria-label="First Name">
+    <input type="text" id="last_name" aria-label="Last Name">
+    <input type="text" id="email" aria-label="Email">
+  </form>
+</body></html>
+"""
+
 
 @pytest.fixture
 def settings() -> Settings:
@@ -163,3 +179,36 @@ def test_navigate_to_application_form_waits_for_a_delayed_render(
         connector.navigate_to_application_form(engine)  # must not raise
 
         assert engine.evaluate('document.querySelector(\'input[name="first_name"]\') !== null')
+
+
+def test_navigate_to_application_form_recognizes_the_id_only_frontend_variant(
+    settings: Settings, connector: WebsiteConnector, tmp_path
+) -> None:
+    # A second real Greenhouse frontend variant found via live-site
+    # validation (ADR-0029): every field uses `id`, never `name` --
+    # _form_is_present() must recognize this as "the form is here"
+    # without needing to click anything.
+    url = _write_html(tmp_path, "id_only.html", _ID_ONLY_NO_NAME_HTML)
+    with PlaywrightBrowserEngine(settings) as engine:
+        engine.navigate(url)
+
+        connector.navigate_to_application_form(engine)  # must not raise
+
+
+def test_get_field_detector_still_detects_id_only_fields_correctly(
+    settings: Settings, connector: WebsiteConnector, tmp_path
+) -> None:
+    # Confirms the generic detector needs no Greenhouse-specific variant
+    # for this case: PlaywrightFormFieldDetector's own selectorFor()
+    # already checks `id` before `name`, so it handles both frontend
+    # variants correctly without any change.
+    url = _write_html(tmp_path, "id_only_detect.html", _ID_ONLY_NO_NAME_HTML)
+    with PlaywrightBrowserEngine(settings) as engine:
+        engine.navigate(url)
+        detector = connector.get_field_detector(engine)
+
+        fields = detector.detect_fields()
+
+        by_selector = {f.selector: f for f in fields}
+        assert by_selector["#first_name"].label == "First Name"
+        assert by_selector["#email"].label == "Email"

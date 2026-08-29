@@ -233,3 +233,20 @@ def test_file_field_type_alone_is_never_sufficient_to_match() -> None:
 
     assert result.matched == []
     assert result.unmatched == [field]
+
+
+def test_email_matches_via_label_even_with_no_name_attribute_at_all() -> None:
+    # Found via real-world validation against a live Greenhouse posting
+    # (ADR-0029): its actual frontend sets no `name` attribute on any
+    # field, only `id` -- and its email field's `type` is "text", not
+    # "email", so neither the structural check nor a name-based synonym
+    # check would fire. Matching must still succeed via the label
+    # (typically an aria-label on a real page like this).
+    profile = _profile()
+    field = _field(field_type="text", name=None, label="Email")
+
+    result = ExactFieldMatcher().match([field], profile, [])
+
+    assert len(result.matched) == 1
+    assert result.matched[0].value == profile.email
+    assert result.matched[0].source == "profile.email"
