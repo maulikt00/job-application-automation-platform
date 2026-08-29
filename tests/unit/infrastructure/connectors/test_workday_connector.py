@@ -14,6 +14,7 @@ from pathlib import Path
 import pytest
 
 from jaap.application.interfaces.website_connector import WebsiteConnector
+from jaap.domain.exceptions import BrowserAutomationError
 from jaap.domain.models.job_posting import JobPlatform
 from jaap.infrastructure.browser.playwright_engine import PlaywrightBrowserEngine
 from jaap.infrastructure.config.settings import Settings
@@ -319,3 +320,62 @@ def test_navigate_raises_a_clear_error_when_apply_manually_leads_to_a_sign_in_wa
 
         with pytest.raises(ValueError, match="requires creating an account or signing in"):
             connector.navigate_to_application_form(engine)
+
+
+# The test below covers a real-world-validation-found fix (ADR-0032,
+# found while confirming ADR-0031's finding against a second Workday
+# tenant): the "Apply Manually" click can raise BrowserAutomationError
+# even when it actually succeeds, since it causes an immediate page
+# transition Playwright's own click() has trouble reporting cleanly on
+# a slower real site. Verified directly against a live site (confirmed:
+# the URL had already changed to the expected destination despite the
+# raised exception) -- not reproducible deterministically with a fast,
+# real Chromium instance and a local test server, so this uses a
+# minimal fake engine instead, to verify the exception-handling logic
+# itself rather than force an artificial 30-second timeout.
+
+
+class _FakeEngineRaisingOnManualClick:
+    """Simulates exactly one thing: the "Apply Manually" click raises
+    BrowserAutomationError, while everything else behaves normally.
+    Not a general-purpose fake -- built narrowly for this one test."""
+
+    def __init__(self, field_appears_after_click: bool) -> None:
+        self._field_appears_after_click = field_appears_after_click
+        self._clicked_manually = False
+        self.clicks: list[str] = []
+
+    def evaluate(self, script: str) -> object:
+        if "window.location.href" in script:
+            return "https://example.com/job/posting"
+        if "role=\"combobox\"" in script:
+            return self._clicked_manually and self._field_appears_after_click
+        if "sign in" in script.lower():
+            return self._clicked_manually and not self._field_appears_after_click
+        raise AssertionError(f"Unexpected evaluate call: {script!r}")
+
+    def navigate(self, url: str) -> None:
+        pass
+
+    def click(self, selector: str) -> None:
+        self.clicks.append(selector)
+        if selector == "text=Apply Manually":
+            self._clicked_manually = True
+            raise BrowserAutomationError("Simulated: click succeeded but reporting failed")
+
+
+def test_navigate_continues_past_a_manual_click_exception_and_finds_the_form() -> None:
+    engine = _FakeEngineRaisingOnManualClick(field_appears_after_click=True)
+    connector = WorkdayConnector()
+
+    connector.navigate_to_application_form(engine)  # must not raise
+
+    assert engine.clicks == ["text=Apply", "text=Apply Manually"]
+
+
+def test_navigate_continues_past_a_manual_click_exception_and_still_detects_sign_in_wall() -> None:
+    engine = _FakeEngineRaisingOnManualClick(field_appears_after_click=False)
+    connector = WorkdayConnector()
+
+    with pytest.raises(ValueError, match="requires creating an account or signing in"):
+        connector.navigate_to_application_form(engine)

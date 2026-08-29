@@ -9,6 +9,20 @@ which it will move to [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- `docs/adr/0032-workday-click-timing.md`: confirmed Workday's
+  mandatory sign-in wall (ADR-0031) on a second, independent tenant
+  (NVIDIA's Workday careers site) -- real evidence this is a recurring
+  platform characteristic, not one company's idiosyncrasy. Also found
+  and fixed a genuinely separate bug: the "Apply Manually" click can
+  report a Playwright timeout even when it actually succeeded, since it
+  causes an immediate page transition -- confirmed directly (the URL
+  had already changed to the expected destination despite the raised
+  exception).
+- `WorkdayConnector.navigate_to_application_form()` now catches the
+  "Apply Manually" click's own exception and proceeds to check the
+  resulting page state regardless, so the correct "requires sign-in"
+  message is reported reliably rather than depending on real-world
+  response-time variance.
 - `docs/adr/0031-workday-signin-wall.md`: the most significant
   real-world-validation finding so far. Workday's own careers site
   required clicking through an in-page modal (contradicting the

@@ -36,6 +36,20 @@ WorkdayFormFieldDetector's own module docstring for the latter.
     ADR-0031 for the full reasoning and why this may not be fixable
     without a separate, deliberate decision to support persistent
     browser sessions (a real architectural change, not attempted here).
+  - **A separate, genuinely fixable bug found while confirming
+    ADR-0031's finding against a second Workday tenant (NVIDIA's,
+    2026-08, see ADR-0032)**: clicking "Apply Manually" can report a
+    Playwright timeout even when the underlying click actually
+    succeeded -- confirmed directly: the page's URL had already
+    changed to the expected `.../applyManually` suffix by the time the
+    exception was raised. This click causes an immediate page
+    transition, and Playwright's own click() waits for the clicked
+    element to remain stable/attached before declaring success; on a
+    slower-responding real site, the element can disappear (the page
+    having already moved on) before that wait resolves, timing out
+    even though nothing is actually wrong. This is caught and treated
+    as informational, not a hard failure -- see the try/except in
+    `navigate_to_application_form()` below.
   - **Confirmed as genuinely multi-step**: independent sources describe
     "the full Workday application flow (upload, auto-fill form, review,
     submit)" -- multiple stages, not a single page. This connector's
@@ -65,6 +79,7 @@ from __future__ import annotations
 
 from jaap.application.interfaces.browser_engine import BrowserAutomationEngine
 from jaap.application.interfaces.form_field_detector import FormFieldDetector
+from jaap.domain.exceptions import BrowserAutomationError
 from jaap.domain.models.job_posting import JobPlatform
 from jaap.infrastructure.connectors._url_utils import append_apply_path
 from jaap.infrastructure.connectors.workday_form_field_detector import (
@@ -104,11 +119,16 @@ class WorkdayConnector:
         via live-site validation (ADR-0031): click "Apply" (opens an
         in-page modal, not a navigation), then "Apply Manually" (the
         most neutral of the modal's options -- see this module's
-        docstring). If that still doesn't reveal a form, checks whether
-        the page looks like a sign-in/account-creation wall and raises a
-        clear, specific error if so, rather than the generic
-        "structure doesn't match assumptions" message -- JAAP will not
-        attempt to get past this itself, by design.
+        docstring). The second click's own failure is caught and
+        treated as informational, not fatal (ADR-0032): it can cause an
+        immediate page transition that makes Playwright's own click()
+        report a timeout even when the underlying action succeeded --
+        confirmed directly against a real site, not assumed. If neither
+        attempt reveals a form, checks whether the page looks like a
+        sign-in/account-creation wall and raises a clear, specific error
+        if so, rather than the generic "structure doesn't match
+        assumptions" message -- JAAP will not attempt to get past this
+        itself, by design.
         """
         current_url = engine.evaluate("window.location.href")
         apply_url = append_apply_path(current_url)
@@ -119,7 +139,15 @@ class WorkdayConnector:
             return
 
         engine.click("text=Apply")
-        engine.click("text=Apply Manually")
+        try:
+            engine.click("text=Apply Manually")
+        except BrowserAutomationError:
+            # See this module's docstring and ADR-0032: this specific
+            # click can report a timeout even when it actually
+            # succeeded, since it causes an immediate page transition.
+            # Proceeding to check the resulting page state regardless,
+            # rather than treating this as a hard failure.
+            pass
 
         if self._field_present(engine):
             return
