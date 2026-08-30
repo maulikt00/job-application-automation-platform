@@ -429,3 +429,103 @@ def test_field_present_recognizes_a_field_with_a_real_automation_id(
         engine.navigate(f"file://{docroot / 'index.html'}")
 
         assert connector._field_present(engine) is True
+
+
+# The tests below cover a real-world-validation-found fix (ADR-0035,
+# found while validating --interactive against NVIDIA's Workday tenant):
+# Workday's own sign-in form ALSO has fields carrying
+# data-automation-id (its own email/password inputs), so
+# _field_present() alone cannot distinguish "the real application form"
+# from "Workday's sign-in form" -- both are genuinely Workday-rendered
+# pages. Confirmed directly: JAAP had auto-filled a profile's email into
+# a login form's own email field, believing it had reached the
+# application form. _on_real_application_form() now checks for a
+# sign-in wall BEFORE ever declaring success on field-presence alone.
+
+
+def test_sign_in_page_with_automation_id_fields_is_not_treated_as_the_real_form(
+    settings: Settings, connector: WebsiteConnector, tmp_path
+) -> None:
+    docroot = tmp_path / "signin_fields_docroot"
+    docroot.mkdir()
+    (docroot / "index.html").write_text(
+        '<html><body><h2>Sign In</h2>'
+        '<input type="text" data-automation-id="input-6" placeholder="Email">'
+        '<input type="password" data-automation-id="input-7" placeholder="Password">'
+        "</body></html>"
+    )
+    with PlaywrightBrowserEngine(settings) as engine:
+        engine.navigate(f"file://{docroot / 'index.html'}")
+
+        assert connector._on_real_application_form(engine) is False
+
+
+def test_a_real_form_with_no_sign_in_text_is_still_recognized(
+    settings: Settings, connector: WebsiteConnector, workday_server: str
+) -> None:
+    # Regression check: the fix must not become overly broad and start
+    # rejecting genuinely real application forms that happen to have no
+    # sign-in text at all (the ordinary, common case).
+    with PlaywrightBrowserEngine(settings) as engine:
+        engine.navigate(workday_server)
+        connector.navigate_to_application_form(engine)
+
+        assert connector._on_real_application_form(engine) is True
+
+
+def test_navigate_raises_authentication_required_even_when_the_signin_page_has_fields(
+    settings: Settings, connector: WebsiteConnector, tmp_path
+) -> None:
+    docroot = tmp_path / "full_signin_docroot"
+    posting_dir = docroot / "Acme" / "job" / "posting777"
+    apply_dir = posting_dir / "apply"
+    apply_dir.mkdir(parents=True)
+    modal_html = """
+    <html><body>
+      <h1>Software Engineer</h1>
+      <button id="apply_btn">Apply</button>
+      <div id="modal" style="display:none;">
+        <button id="manual_btn">Apply Manually</button>
+      </div>
+      <script>
+        document.getElementById('apply_btn').addEventListener('click', function () {
+          document.getElementById('modal').style.display = 'block';
+        });
+        document.getElementById('manual_btn').addEventListener('click', function () {
+          window.location.href = 'login.html';
+        });
+      </script>
+    </body></html>
+    """
+    login_html = """
+    <html><body>
+      <h2>Sign In</h2>
+      <input type="text" data-automation-id="input-6" placeholder="Email">
+      <input type="password" data-automation-id="input-7" placeholder="Password">
+    </body></html>
+    """
+    (posting_dir / "index.html").write_text(modal_html)
+    (apply_dir / "index.html").write_text(modal_html)
+    (apply_dir / "login.html").write_text(login_html)
+
+    class Handler(SimpleHTTPRequestHandler):
+        def __init__(self, *args, **kwargs) -> None:
+            super().__init__(*args, directory=str(docroot), **kwargs)
+
+        def log_message(self, format: str, *args: object) -> None:
+            pass
+
+    server = HTTPServer(("127.0.0.1", 0), Handler)
+    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    try:
+        url = f"http://127.0.0.1:{server.server_port}/Acme/job/posting777/"
+        with PlaywrightBrowserEngine(settings) as engine:
+            engine.navigate(url)
+            with pytest.raises(
+                AuthenticationRequiredError, match="requires creating an account or signing in"
+            ):
+                connector.navigate_to_application_form(engine)
+    finally:
+        server.shutdown()
+        thread.join(timeout=5)

@@ -142,21 +142,26 @@ class WorkdayConnector:
         treated as informational, not fatal (ADR-0032): it can cause an
         immediate page transition that makes Playwright's own click()
         report a timeout even when the underlying action succeeded --
-        confirmed directly against a real site, not assumed. If neither
-        attempt reveals a form, checks whether the page looks like a
-        sign-in/account-creation wall and raises
-        `AuthenticationRequiredError` (ADR-0034) if so, rather than the
-        generic "structure doesn't match assumptions" ValueError --
-        JAAP will not attempt to get past this itself, by design, but
-        `jaap application review --interactive` can pause here and let
-        a human sign in before retrying.
+        confirmed directly against a real site, not assumed.
+
+        Checks for a sign-in wall BEFORE declaring success on
+        field-presence alone (ADR-0035): found necessary via
+        `--interactive` validation -- Workday's own sign-in form also
+        has fields carrying `data-automation-id` (its own email/password
+        inputs), so `_field_present()` alone cannot distinguish "the
+        real application form" from "Workday's sign-in form," which is
+        also a Workday-rendered page. Checking sign-in-wall indicators
+        first, every time, regardless of whether fields are present,
+        closes this -- confirmed directly: JAAP had auto-filled a
+        profile's email into what was actually a login form's own email
+        field, not any part of a job application.
         """
         current_url = engine.evaluate("window.location.href")
         apply_url = append_apply_path(current_url)
         if apply_url != current_url:
             engine.navigate(apply_url)
 
-        if self._field_present(engine):
+        if self._on_real_application_form(engine):
             return
 
         engine.click("text=Apply")
@@ -170,7 +175,7 @@ class WorkdayConnector:
             # rather than treating this as a hard failure.
             pass
 
-        if self._field_present(engine):
+        if self._on_real_application_form(engine):
             return
 
         if engine.evaluate(_SIGN_IN_INDICATOR_SCRIPT):
@@ -197,6 +202,14 @@ class WorkdayConnector:
         # unchanged -- see WorkdayFormFieldDetector's own docstring for
         # the honest confidence distinction on exactly what's detected.
         return WorkdayFormFieldDetector(engine)
+
+    def _on_real_application_form(self, engine: BrowserAutomationEngine) -> bool:
+        # ADR-0035: fields being present is necessary but NOT sufficient
+        # -- a sign-in wall must be ruled out every time, since Workday's
+        # own sign-in form also has data-automation-id-tagged fields.
+        if engine.evaluate(_SIGN_IN_INDICATOR_SCRIPT):
+            return False
+        return self._field_present(engine)
 
     def _field_present(self, engine: BrowserAutomationEngine) -> bool:
         return bool(engine.evaluate(_FIELD_PRESENT_SCRIPT))
