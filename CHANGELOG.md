@@ -9,6 +9,22 @@ which it will move to [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- `docs/adr/0038-profile-address-fields.md`: requested directly after
+  a real Workday application form showed `addressLine1`/`city`/
+  `postalCode` fields with no equivalent on `Profile` at all.
+- `Profile` gains six new optional fields: `address_line1`,
+  `address_line2`, `city`, `state`, `postal_code`, `country`.
+- `UpdateProfileUseCase` and `jaap profile update --profile-id <id>`:
+  a partial update (only explicitly-passed fields change) -- closes an
+  independently-flagged gap ("Profile has only create") at the same
+  time as adding address support.
+- `ExactFieldMatcher`: new synonym sets for all six address fields,
+  verified against the exact real Workday field structure observed in
+  validation.
+- `scripts/migrate_add_profile_address_fields.py`: a one-off,
+  idempotent migration script adding the new columns to an existing
+  database without losing data -- this project has no formal migration
+  system, and `create_all()` never alters existing tables.
 - `docs/adr/0037-first-last-name-splitting.md`: after the split-name
   limitation was confirmed on two real platforms, first/last name
   splitting was built by explicit request -- but deliberately narrow:

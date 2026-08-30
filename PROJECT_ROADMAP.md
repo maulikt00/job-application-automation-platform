@@ -521,6 +521,22 @@ of Milestones 20-23 had done.
   matched by name; Workday's `legalName--firstName`/`legalName--lastName`,
   matched by label) and against the safety property directly (a
   single-word and a three-word name both correctly stay unmatched).
+- ✅ **Profile address fields** ([ADR-0038](docs/adr/0038-profile-address-fields.md)):
+  requested directly after the real Workday form showed `addressLine1`,
+  `city`, `postalCode` fields with no equivalent on `Profile` at all.
+  Added six new optional fields (`address_line1`, `address_line2`,
+  `city`, `state`, `postal_code`, `country`), matching synonym sets in
+  `ExactFieldMatcher` verified against the exact real field names/labels
+  observed, and a new `UpdateProfileUseCase` + `jaap profile update`
+  command (a partial update -- only fields explicitly passed change),
+  closing an independently-flagged gap from the post-Phase-4 checkpoint
+  review at the same time. A one-off migration script
+  (`scripts/migrate_add_profile_address_fields.py`) safely adds the new
+  columns to an existing database without losing data, since this
+  project has no formal migration system and `create_all()` never
+  alters existing tables -- verified directly against a simulated
+  pre-migration database, confirming existing data survives and the
+  script is safely idempotent.
 
 ## Phase 5 — Platform & Scale (Future)
 
