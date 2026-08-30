@@ -97,3 +97,24 @@ class AIProviderError(DomainError):
     correctly, defeating the point of the interface.
     """
 
+
+class AuthenticationRequiredError(DomainError):
+    """Raised by a WebsiteConnector when reaching an application's form
+    requires the user to sign in first, which JAAP does not automate
+    under any circumstances (a firm, deliberate boundary -- see
+    ADR-0031). Distinct from BrowserAutomationError (an infrastructure
+    failure) and from a connector's own generic "structure doesn't match
+    my assumptions" ValueError: this specifically means "a human needs
+    to authenticate before this can proceed," a genuinely different
+    situation with a genuinely different possible response.
+
+    `jaap application review --interactive` (ADR-0034) catches this
+    specifically to pause and let a human sign in in the still-open
+    browser window before retrying, rather than failing immediately the
+    way every other error does. Found necessary via real-world
+    validation against Workday (ADR-0031/0032/0033), but defined here at
+    the domain level, in `WebsiteConnector`'s own interface contract,
+    for any current or future connector to raise -- not specific to
+    Workday's own implementation.
+    """
+

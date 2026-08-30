@@ -81,7 +81,7 @@ python -m playwright install chromium
 pytest tests/unit -v
 ```
 
-391 tests, covering domain models, configuration/logging, the database
+396 tests, covering domain models, configuration/logging, the database
 layer, all six repositories, core use cases, the CLI, browser automation
 including form field detection/autofill/resume upload/the human review
 gate (run against a real headless Chromium instance and a real local
@@ -93,13 +93,14 @@ via a fake client, no real API calls, and each selectable via
 recommendations, three website connectors (`GreenhouseConnector`,
 `LeverConnector`, `WorkdayConnector`, each verified against real
 Chromium), the connector registry wiring them into `jaap application
-review`, and a growing set of fixes found by validating against real,
-live job postings on Lever, Greenhouse, and Workday (confirmed on two
-independent tenants) -- including a firm, reinforced boundary that JAAP
-will never automate account creation or sign-in, and an honestly-stated
-open gap that Workday's real form markup has never actually been
-observed, since every real attempt has hit a mandatory sign-in wall
-first.
+review`, a generic `--interactive` pause-and-retry mechanism for
+connectors reporting a sign-in wall, and a growing set of fixes found by
+validating against real, live job postings on Lever, Greenhouse, and
+Workday (confirmed on two independent tenants) -- including a firm,
+reinforced boundary that JAAP will never automate account creation or
+sign-in, and an honestly-stated open gap that Workday's real form markup
+has never actually been observed, since every real attempt has hit a
+mandatory sign-in wall first.
 
 ## Tech Stack
 

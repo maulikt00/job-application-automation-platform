@@ -8,6 +8,8 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 from jaap.application.exceptions import JobPostingNotFoundError
+from jaap.application.interfaces.browser_engine import BrowserAutomationEngine
+from jaap.application.interfaces.website_connector import WebsiteConnector
 from jaap.application.services.field_matcher import ExactFieldMatcher
 from jaap.application.use_cases.attach_resume_to_application import (
     AttachResumeToApplicationUseCase,
@@ -16,6 +18,7 @@ from jaap.application.use_cases.autofill_application import AutofillApplicationU
 from jaap.application.use_cases.review_application import ReviewApplicationUseCase
 from jaap.application.use_cases.start_application import StartApplicationUseCase
 from jaap.application.use_cases.submit_application import SubmitApplicationUseCase
+from jaap.domain.exceptions import AuthenticationRequiredError
 from jaap.domain.models import ApplicationId, JobPostingId, ProfileId, ResumeId
 from jaap.infrastructure.browser.form_field_detector import PlaywrightFormFieldDetector
 from jaap.infrastructure.browser.playwright_engine import PlaywrightBrowserEngine
@@ -72,6 +75,19 @@ def register(subparsers: argparse._SubParsersAction) -> None:
     review_parser.add_argument("--job-posting-id", required=True, type=uuid.UUID)
     review_parser.add_argument("--resume-id", type=uuid.UUID, default=None)
     review_parser.add_argument("--screenshot-path", type=Path, default=None)
+    review_parser.add_argument(
+        "--interactive",
+        action="store_true",
+        help=(
+            "If a connector reports that signing in is required "
+            "(AuthenticationRequiredError), pause with the browser open "
+            "so you can sign in yourself, then retry when you press "
+            "Enter, instead of failing immediately. JAAP still never "
+            "automates the sign-in step itself (see ADR-0034). Requires "
+            "JAAP_HEADLESS=false, since you need to see the browser "
+            "window to sign in with."
+        ),
+    )
     review_parser.set_defaults(handler=_handle_review)
 
 
@@ -138,6 +154,16 @@ def _handle_review(args: argparse.Namespace, context: Context) -> int:
     if posting is None:
         raise JobPostingNotFoundError(job_posting_id)
 
+    if args.interactive and context.settings.headless:
+        # Fails fast, before launching a browser at all: a headless
+        # browser has no visible window for a human to sign in with,
+        # so --interactive would otherwise just appear to hang with
+        # nothing to interact with.
+        raise ValueError(
+            "--interactive requires a visible browser window to sign in "
+            "with -- set JAAP_HEADLESS=false and try again."
+        )
+
     screenshot_path = args.screenshot_path or (
         context.settings.log_dir / "review_screenshots" / f"{args.job_posting_id}.png"
     )
@@ -146,6 +172,11 @@ def _handle_review(args: argparse.Namespace, context: Context) -> int:
     # captured before that happens, is the reviewable artifact (see
     # ReviewApplicationUseCase's docstring and ADR-0012 for why this
     # command does not leave the browser open for a live handoff).
+    # --interactive (ADR-0034) is a deliberate, explicit, opt-in
+    # exception to that norm for exactly one situation (a connector
+    # reporting AuthenticationRequiredError) -- the browser still closes
+    # at the end of this same block either way; it just may pause,
+    # still open, partway through first.
     with PlaywrightBrowserEngine(context.settings) as engine:
         engine.navigate(str(posting.url))
 
@@ -158,7 +189,12 @@ def _handle_review(args: argparse.Namespace, context: Context) -> int:
         # yet, not an error.
         connector = find_connector(str(posting.url))
         if connector is not None:
-            connector.navigate_to_application_form(engine)
+            try:
+                connector.navigate_to_application_form(engine)
+            except AuthenticationRequiredError as exc:
+                if not args.interactive:
+                    raise
+                _wait_for_manual_sign_in(engine, connector, exc)
             form_field_detector = connector.get_field_detector(engine)
         else:
             form_field_detector = PlaywrightFormFieldDetector(engine)
@@ -204,3 +240,39 @@ def _handle_review(args: argparse.Namespace, context: Context) -> int:
         " complete submission yourself in your own browser."
     )
     return 0
+
+
+def _wait_for_manual_sign_in(
+    engine: BrowserAutomationEngine,
+    connector: WebsiteConnector,
+    error: AuthenticationRequiredError,
+) -> None:
+    """Pauses with the browser still open, letting a human sign in
+    themselves, then retries `navigate_to_application_form()` -- ADR-0034.
+
+    JAAP still never automates the sign-in step itself; this only
+    pauses and gets out of the way while a human does it, then resumes
+    automation once they're done. Loops (rather than retrying only
+    once) since a real sign-in flow can itself be multi-step (email,
+    then password, then a 2FA prompt), so a human may reasonably need
+    more than one attempt before `navigate_to_application_form()`
+    actually succeeds.
+    """
+    print()
+    print(f"Sign-in required: {error}")
+    print()
+    print("A browser window is open on the sign-in page -- please sign in there now.")
+    while True:
+        response = input(
+            "Press Enter once you've signed in to continue (or type 'q' to give up): "
+        ).strip().lower()
+        if response == "q":
+            raise error
+        try:
+            connector.navigate_to_application_form(engine)
+            print("Continuing...")
+            return
+        except AuthenticationRequiredError as exc:
+            print()
+            print(f"Still looks like sign-in is required: {exc}")
+            error = exc

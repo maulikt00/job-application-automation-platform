@@ -9,6 +9,23 @@ which it will move to [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- `docs/adr/0034-interactive-signin-pause-retry.md`: a generic
+  pause-and-retry mechanism for connectors reporting a sign-in wall,
+  discussed explicitly before building -- distinguished from JAAP
+  automating credentials itself (still a firm, unchanged boundary)
+  since this is a human signing in themselves while JAAP pauses and
+  gets out of the way.
+- `domain/exceptions.py`: new `AuthenticationRequiredError`, formalized
+  as part of `WebsiteConnector`'s own interface contract so any
+  connector (not just Workday) can raise it and get the same behavior.
+- `jaap application review --interactive`: catches
+  `AuthenticationRequiredError`, prints instructions, and loops on
+  `input()` (press Enter to retry, `q` to give up) with the browser
+  still open. Opt-in; default (non-interactive) behavior is completely
+  unchanged. Requires `JAAP_HEADLESS=false`, checked before any browser
+  launches.
+- `WorkdayConnector` now raises `AuthenticationRequiredError` (not a
+  plain `ValueError`) for its sign-in-wall detection.
 - `docs/adr/0033-workday-field-presence-false-positive.md`: a more
   foundational bug than the prior Workday findings -- the "is a form
   present" check matched any input/combobox anywhere on the page, and

@@ -43,6 +43,18 @@ specifically because it is not, and must never become, a reopening of
 the "no automatic submission" boundary established in ADR-0001/0012.
 There remains no code path anywhere in this codebase that submits a
 completed application without human review.
+
+`navigate_to_application_form()` should raise
+`jaap.domain.exceptions.AuthenticationRequiredError` (not a generic
+ValueError) if reaching the application form genuinely requires the
+user to be signed in -- found necessary via real-world validation
+against Workday (ADR-0031/0032/0033) and formalized here as part of
+this interface's own contract, so any current or future connector
+raises the same, specific exception type for this situation rather than
+each inventing its own. `jaap application review --interactive`
+(ADR-0034) catches specifically this exception to pause and let a human
+sign in before retrying -- JAAP itself still never automates the sign-in
+step; it only pauses and gets out of the way while a human does.
 """
 
 from __future__ import annotations
@@ -72,6 +84,10 @@ class WebsiteConnector(Protocol):
 
         Must NEVER click a final submission control -- see this module's
         docstring for why this boundary matters and how it was confirmed.
+
+        Should raise `AuthenticationRequiredError` (not a plain
+        ValueError) if reaching the form genuinely requires the user to
+        sign in first -- see this module's docstring.
         """
         ...
 
