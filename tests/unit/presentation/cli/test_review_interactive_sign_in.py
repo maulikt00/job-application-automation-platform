@@ -107,6 +107,26 @@ class _FakeConnectorRaisingNTimes:
             raise AuthenticationRequiredError(f"Sign-in required (attempt {self.call_count}).")
 
 
+class _FakeConnectorTransientThenSuccess:
+    """Reproduces the exact real scenario found in ADR-0036: right after
+    signing in, a real retry hit a generic ValueError (page in a brief
+    transitional state), not another AuthenticationRequiredError -- a
+    second, completely separate CLI invocation then succeeded. This
+    fake raises a ValueError on its first call (not
+    AuthenticationRequiredError), then succeeds on the second."""
+
+    def __init__(self) -> None:
+        self.call_count = 0
+
+    def navigate_to_application_form(self, engine) -> None:
+        self.call_count += 1
+        if self.call_count == 1:
+            raise ValueError(
+                "Clicked through Workday's Apply flow, but no field with a "
+                "data-automation-id attribute was found afterward."
+            )
+
+
 def test_wait_for_manual_sign_in_succeeds_after_one_retry() -> None:
     connector = _FakeConnectorRaisingNTimes(fail_count=1)
     original_error = AuthenticationRequiredError("Sign-in required (attempt 1).")
@@ -115,6 +135,39 @@ def test_wait_for_manual_sign_in_succeeds_after_one_retry() -> None:
         _wait_for_manual_sign_in(_FakeEngine(), connector, original_error)
 
     assert connector.call_count == 2  # fails once, succeeds on the second attempt
+
+
+def test_wait_for_manual_sign_in_retries_past_a_transient_value_error() -> None:
+    # ADR-0036: a generic ValueError right after signing in (the page
+    # briefly in a transitional state) must not kill the whole loop --
+    # the human should be able to press Enter again and succeed.
+    connector = _FakeConnectorTransientThenSuccess()
+
+    with patch("builtins.input", return_value=""):
+        _wait_for_manual_sign_in(
+            _FakeEngine(),
+            connector,
+            AuthenticationRequiredError("Sign-in required."),
+        )
+
+    assert connector.call_count == 2
+
+
+def test_wait_for_manual_sign_in_gives_up_with_the_latest_error_after_a_transient_failure() -> None:
+    connector = _FakeConnectorTransientThenSuccess()
+
+    with (
+        patch("builtins.input", side_effect=["", "q"]),
+        pytest.raises(AuthenticationRequiredError, match="data-automation-id"),
+    ):
+        # Force a second failure by making call_count never reach the
+        # success branch: reuse the same fake but call it enough times
+        # that it would have succeeded, then give up before that.
+        _wait_for_manual_sign_in(
+            _FakeEngine(),
+            connector,
+            AuthenticationRequiredError("Sign-in required."),
+        )
 
 
 def test_wait_for_manual_sign_in_loops_across_multiple_failed_attempts() -> None:

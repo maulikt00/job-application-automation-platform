@@ -18,7 +18,7 @@ from jaap.application.use_cases.autofill_application import AutofillApplicationU
 from jaap.application.use_cases.review_application import ReviewApplicationUseCase
 from jaap.application.use_cases.start_application import StartApplicationUseCase
 from jaap.application.use_cases.submit_application import SubmitApplicationUseCase
-from jaap.domain.exceptions import AuthenticationRequiredError
+from jaap.domain.exceptions import AuthenticationRequiredError, BrowserAutomationError
 from jaap.domain.models import ApplicationId, JobPostingId, ProfileId, ResumeId
 from jaap.infrastructure.browser.form_field_detector import PlaywrightFormFieldDetector
 from jaap.infrastructure.browser.playwright_engine import PlaywrightBrowserEngine
@@ -257,6 +257,15 @@ def _wait_for_manual_sign_in(
     then password, then a 2FA prompt), so a human may reasonably need
     more than one attempt before `navigate_to_application_form()`
     actually succeeds.
+
+    Also retries on a connector's other exception types (`ValueError`,
+    `BrowserAutomationError`), not just a repeated
+    `AuthenticationRequiredError` -- found necessary via real-world
+    validation (ADR-0036): immediately after signing in, a real site can
+    be in a brief transitional state (mid-redirect, still loading) that
+    matches neither "form found" nor "still requires sign-in," and a
+    human may simply need to wait a moment and press Enter again rather
+    than have the whole command fail outright.
     """
     print()
     print(f"Sign-in required: {error}")
@@ -276,3 +285,11 @@ def _wait_for_manual_sign_in(
             print()
             print(f"Still looks like sign-in is required: {exc}")
             error = exc
+        except (ValueError, BrowserAutomationError) as exc:
+            print()
+            print(
+                f"That attempt didn't succeed ({exc}). The page may still "
+                "be loading -- wait a moment and press Enter to try again, "
+                "or type 'q' to give up."
+            )
+            error = AuthenticationRequiredError(str(exc))
