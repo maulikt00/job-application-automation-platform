@@ -495,6 +495,19 @@ of Milestones 20-23 had done.
   Apply Manually -> a login page with real fields), which now
   correctly raises `AuthenticationRequiredError` instead of silently
   succeeding.
+- ✅ **First real Workday application form reached** ([ADR-0036](docs/adr/0036-first-real-workday-form.md)):
+  after the fix above, two runs against NVIDIA's posting -- one hit a
+  real, fixable bug (a transient error right after signing in killed
+  the whole retry loop instead of allowing another attempt; fixed by
+  broadening which exceptions the loop retries on), and the other
+  **reached a real, authenticated Workday application form for the
+  first time in this project's history**: 16 real fields
+  (`legalName--firstName`, `addressLine1`, `candidateIsPreviousWorker`,
+  etc.), correctly detected as fields. `Autofilled 0` was reported, but
+  this is the same, already-known, deliberate limitation confirmed a
+  second time (Greenhouse's own split first/last name fields, ADR-0029)
+  -- not a new bug. Whether to build name-splitting is left as an open
+  decision, not resolved here.
 
 ## Phase 5 — Platform & Scale (Future)
 

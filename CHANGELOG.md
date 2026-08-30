@@ -9,6 +9,20 @@ which it will move to [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- `docs/adr/0036-first-real-workday-form.md`: for the first time in this
+  project's history, a real, authenticated Workday application form was
+  reached (16 real fields: `legalName--firstName`,
+  `candidateIsPreviousWorker`, `addressLine1`, and others), confirming
+  `WorkdayFormFieldDetector` correctly recognizes them. `Autofilled 0`
+  is expected -- the same, already-known name-splitting limitation
+  confirmed a second time (Greenhouse's own split fields, ADR-0029), not
+  a new bug. Also fixed a real bug found along the way: a transient
+  error right after signing in killed the whole `--interactive` retry
+  loop instead of allowing another attempt.
+- `_wait_for_manual_sign_in()` now also retries on `ValueError`/
+  `BrowserAutomationError`, not only a repeated
+  `AuthenticationRequiredError` -- a real site can be in a
+  hard-to-categorize transitional state immediately after a redirect.
 - `docs/adr/0035-workday-signin-field-check-order.md`: a genuinely
   serious finding from the first real use of `--interactive`. The
   review completed with no interactive prompt appearing, but the
