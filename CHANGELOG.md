@@ -9,6 +9,16 @@ which it will move to [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- `docs/adr/0037-first-last-name-splitting.md`: after the split-name
+  limitation was confirmed on two real platforms, first/last name
+  splitting was built by explicit request -- but deliberately narrow:
+  only a simple, exactly-two-token "First Last" name is split; anything
+  more ambiguous stays unmatched, same as before.
+- `ExactFieldMatcher` now splits `Profile.full_name` for the exact
+  two-token case, with new `_FIRST_NAME_SYNONYMS`/`_LAST_NAME_SYNONYMS`
+  sets matched against both name and label. Verified against both real
+  field structures that motivated this (Greenhouse's `first_name`/
+  `last_name`; Workday's `legalName--firstName`/`legalName--lastName`).
 - `docs/adr/0036-first-real-workday-form.md`: for the first time in this
   project's history, a real, authenticated Workday application form was
   reached (16 real fields: `legalName--firstName`,

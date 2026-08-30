@@ -508,6 +508,19 @@ of Milestones 20-23 had done.
   second time (Greenhouse's own split first/last name fields, ADR-0029)
   -- not a new bug. Whether to build name-splitting is left as an open
   decision, not resolved here.
+- ✅ **First/last name splitting** ([ADR-0037](docs/adr/0037-first-last-name-splitting.md)):
+  after the split-name limitation was confirmed on two real platforms,
+  the project owner made an explicit, informed choice: they will only
+  ever enter a simple two-word "First Last" name, and asked for
+  splitting to be built for exactly that case. `ExactFieldMatcher` now
+  splits `Profile.full_name` -- but ONLY when it has precisely two
+  space-separated tokens; a single name, a middle name, or any other
+  ambiguity is deliberately left unsplit, and the field stays
+  unmatched, same as before. Verified against both real field
+  structures that motivated this (Greenhouse's `first_name`/`last_name`,
+  matched by name; Workday's `legalName--firstName`/`legalName--lastName`,
+  matched by label) and against the safety property directly (a
+  single-word and a three-word name both correctly stay unmatched).
 
 ## Phase 5 — Platform & Scale (Future)
 
