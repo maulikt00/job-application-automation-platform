@@ -464,6 +464,22 @@ of Milestones 20-23 had done.
   real Workday form's markup, since every real attempt has hit the
   sign-in wall first -- stated honestly, not resolved by this fix.
 
+- ✅ **`--interactive` sign-in pause-and-retry** ([ADR-0034](docs/adr/0034-interactive-signin-pause-retry.md)):
+  discussed explicitly before building -- distinguished from JAAP
+  automating credentials (still a firm, unchanged boundary) since this
+  is a human signing in themselves while JAAP pauses and gets out of
+  the way, then resumes. A new `AuthenticationRequiredError` was
+  formalized as part of `WebsiteConnector`'s own interface contract
+  (not Workday-specific), so any connector can raise it and get this
+  behavior for free. `jaap application review --interactive` catches
+  it, prints instructions, and loops on `input()` (press Enter to
+  retry, `q` to give up) with the browser still open -- opt-in, default
+  behavior completely unchanged, requires `JAAP_HEADLESS=false`
+  (checked before any browser launches). Persistent session storage
+  (removing the recurring sign-in cost entirely) was deliberately
+  deferred as its own, separate, future conversation, not folded into
+  this feature.
+
 ## Phase 5 — Platform & Scale (Future)
 
 Not yet broken into milestones; scope will be defined once Phase 4 is
