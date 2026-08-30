@@ -10,9 +10,17 @@ itself a form of guessing, just a quantified one; this implementation
 avoids that entirely. Anything not confidently, exactly matched is left
 unmatched.
 
-Does NOT attempt to split Profile.full_name into first/last name parts
-for forms with separate fields -- doing so would itself be guessing
-which part maps to which.
+Splits Profile.full_name into first/last name parts for forms with
+separate fields (confirmed real on both Greenhouse and Workday,
+ADR-0029/0036) -- but ONLY for the simple, unambiguous case of exactly
+two space-separated tokens ("First Last"). A name with zero, one, three,
+or more tokens (a single name, a middle name, multiple last/family
+names, non-Western name ordering) is deliberately left unsplit, and any
+first/last-name field is then left unmatched rather than guessed at --
+this was a real, explicit choice by the project owner (who confirmed
+they will only ever enter a two-token name), not a claim that this
+handles names in general. Building broader name-parsing was explicitly
+discussed and declined as its own, separate, harder problem.
 
 File-upload fields (Milestone 11) are matched ONLY by an explicit
 resume-related synonym on the field's name/label, never by
@@ -35,11 +43,27 @@ from jaap.utils.slugify import slugify
 # spaces) since both sides of the comparison are normalized with the
 # same slugify() function.
 _FULL_NAME_SYNONYMS = frozenset({"name", "full-name", "fullname", "your-name", "applicant-name"})
+_FIRST_NAME_SYNONYMS = frozenset({"first-name", "firstname", "given-name", "givenname"})
+_LAST_NAME_SYNONYMS = frozenset(
+    {"last-name", "lastname", "family-name", "familyname", "surname"}
+)
 _EMAIL_SYNONYMS = frozenset({"email", "e-mail", "email-address"})
 _PHONE_SYNONYMS = frozenset({"phone", "phone-number", "telephone", "mobile", "mobile-number"})
 _RESUME_SYNONYMS = frozenset(
     {"resume", "cv", "resume-upload", "upload-resume", "attach-resume", "resume-file", "your-resume"}
 )
+
+
+def _split_full_name(full_name: str) -> tuple[str, str] | None:
+    """Splits `full_name` into (first, last) parts, ONLY for the simple,
+    unambiguous two-token "First Last" case -- see this module's own
+    docstring for why anything more ambiguous is deliberately left
+    unsplit rather than guessed at.
+    """
+    parts = full_name.split()
+    if len(parts) == 2:
+        return parts[0], parts[1]
+    return None
 
 
 class ExactFieldMatcher:
@@ -100,6 +124,20 @@ class ExactFieldMatcher:
         # 2. Exact name/label match against a small, explicit synonym set.
         if name_slug in _FULL_NAME_SYNONYMS or label_slug in _FULL_NAME_SYNONYMS:
             return MatchedField(field=field, value=profile.full_name, source="profile.full_name")
+        if name_slug in _FIRST_NAME_SYNONYMS or label_slug in _FIRST_NAME_SYNONYMS:
+            split_name = _split_full_name(profile.full_name)
+            if split_name is not None:
+                first_name, _ = split_name
+                return MatchedField(
+                    field=field, value=first_name, source="profile.full_name (first)"
+                )
+        if name_slug in _LAST_NAME_SYNONYMS or label_slug in _LAST_NAME_SYNONYMS:
+            split_name = _split_full_name(profile.full_name)
+            if split_name is not None:
+                _, last_name = split_name
+                return MatchedField(
+                    field=field, value=last_name, source="profile.full_name (last)"
+                )
         if name_slug in _EMAIL_SYNONYMS or label_slug in _EMAIL_SYNONYMS:
             return MatchedField(field=field, value=profile.email, source="profile.email")
         if (
