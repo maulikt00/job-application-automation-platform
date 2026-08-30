@@ -14,7 +14,7 @@ from pathlib import Path
 import pytest
 
 from jaap.application.interfaces.website_connector import WebsiteConnector
-from jaap.domain.exceptions import BrowserAutomationError
+from jaap.domain.exceptions import AuthenticationRequiredError, BrowserAutomationError
 from jaap.domain.models.job_posting import JobPlatform
 from jaap.infrastructure.browser.playwright_engine import PlaywrightBrowserEngine
 from jaap.infrastructure.config.settings import Settings
@@ -318,7 +318,7 @@ def test_navigate_raises_a_clear_error_when_apply_manually_leads_to_a_sign_in_wa
     with PlaywrightBrowserEngine(settings) as engine:
         engine.navigate(login_wall_server)
 
-        with pytest.raises(ValueError, match="requires creating an account or signing in"):
+        with pytest.raises(AuthenticationRequiredError, match="requires creating an account or signing in"):
             connector.navigate_to_application_form(engine)
 
 
@@ -377,7 +377,7 @@ def test_navigate_continues_past_a_manual_click_exception_and_still_detects_sign
     engine = _FakeEngineRaisingOnManualClick(field_appears_after_click=False)
     connector = WorkdayConnector()
 
-    with pytest.raises(ValueError, match="requires creating an account or signing in"):
+    with pytest.raises(AuthenticationRequiredError, match="requires creating an account or signing in"):
         connector.navigate_to_application_form(engine)
 
 

@@ -95,7 +95,7 @@ from __future__ import annotations
 
 from jaap.application.interfaces.browser_engine import BrowserAutomationEngine
 from jaap.application.interfaces.form_field_detector import FormFieldDetector
-from jaap.domain.exceptions import BrowserAutomationError
+from jaap.domain.exceptions import AuthenticationRequiredError, BrowserAutomationError
 from jaap.domain.models.job_posting import JobPlatform
 from jaap.infrastructure.connectors._url_utils import append_apply_path
 from jaap.infrastructure.connectors.workday_form_field_detector import (
@@ -144,10 +144,12 @@ class WorkdayConnector:
         report a timeout even when the underlying action succeeded --
         confirmed directly against a real site, not assumed. If neither
         attempt reveals a form, checks whether the page looks like a
-        sign-in/account-creation wall and raises a clear, specific error
-        if so, rather than the generic "structure doesn't match
-        assumptions" message -- JAAP will not attempt to get past this
-        itself, by design.
+        sign-in/account-creation wall and raises
+        `AuthenticationRequiredError` (ADR-0034) if so, rather than the
+        generic "structure doesn't match assumptions" ValueError --
+        JAAP will not attempt to get past this itself, by design, but
+        `jaap application review --interactive` can pause here and let
+        a human sign in before retrying.
         """
         current_url = engine.evaluate("window.location.href")
         apply_url = append_apply_path(current_url)
@@ -172,12 +174,14 @@ class WorkdayConnector:
             return
 
         if engine.evaluate(_SIGN_IN_INDICATOR_SCRIPT):
-            raise ValueError(
+            raise AuthenticationRequiredError(
                 "This Workday posting requires creating an account or "
                 "signing in before the application form can be reached. "
                 "JAAP does not automate account creation or login, and "
                 "does not persist browser sessions between runs -- this "
-                "posting cannot currently be autofilled by JAAP."
+                "posting cannot currently be autofilled by JAAP without "
+                "signing in yourself (see `jaap application review "
+                "--interactive`)."
             )
 
         raise ValueError(
