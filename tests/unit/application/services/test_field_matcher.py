@@ -250,3 +250,76 @@ def test_email_matches_via_label_even_with_no_name_attribute_at_all() -> None:
     assert len(result.matched) == 1
     assert result.matched[0].value == profile.email
     assert result.matched[0].source == "profile.email"
+
+
+# The tests below cover first/last name splitting, added by explicit
+# request after this exact limitation was confirmed on two real
+# platforms (Greenhouse's split first_name/last_name fields, ADR-0029;
+# Workday's legalName--firstName/legalName--lastName, ADR-0036).
+# Deliberately narrow: ONLY the simple, unambiguous "First Last"
+# two-token case is split; anything more ambiguous is left unmatched,
+# not guessed at.
+
+
+def test_first_and_last_name_split_from_a_simple_two_token_full_name() -> None:
+    profile = _profile(full_name="Maulik Thakar")
+    first_field = _field(name="first_name", selector="#first")
+    last_field = _field(name="last_name", selector="#last")
+
+    result = ExactFieldMatcher().match([first_field, last_field], profile, [])
+
+    by_selector = {m.field.selector: m for m in result.matched}
+    assert len(result.matched) == 2
+    assert by_selector["#first"].value == "Maulik"
+    assert by_selector["#first"].source == "profile.full_name (first)"
+    assert by_selector["#last"].value == "Thakar"
+    assert by_selector["#last"].source == "profile.full_name (last)"
+
+
+def test_first_name_matches_via_the_real_greenhouse_field_name() -> None:
+    profile = _profile(full_name="Maulik Thakar")
+    field = _field(name="first_name")
+
+    result = ExactFieldMatcher().match([field], profile, [])
+
+    assert len(result.matched) == 1
+    assert result.matched[0].value == "Maulik"
+    assert result.matched[0].source == "profile.full_name (first)"
+
+
+def test_last_name_matches_via_the_real_workday_field_structure() -> None:
+    # Workday's real field name (legalName--lastName) doesn't match any
+    # synonym directly -- the label ("Last Name") is what makes this
+    # match, exactly as it did for Greenhouse's own no-name-attribute
+    # fields (see test_email_matches_via_label_even_with_no_name_attribute_at_all).
+    profile = _profile(full_name="Maulik Thakar")
+    field = _field(name="legalName--lastName", label="Last Name")
+
+    result = ExactFieldMatcher().match([field], profile, [])
+
+    assert len(result.matched) == 1
+    assert result.matched[0].value == "Thakar"
+
+
+def test_first_last_name_fields_stay_unmatched_for_a_single_word_name() -> None:
+    profile = _profile(full_name="Madonna")
+    first_field = _field(name="first_name")
+    last_field = _field(name="last_name")
+
+    result = ExactFieldMatcher().match([first_field, last_field], profile, [])
+
+    assert result.matched == []
+    assert len(result.unmatched) == 2
+
+
+def test_first_last_name_fields_stay_unmatched_for_a_three_token_name() -> None:
+    # A middle name is exactly the kind of ambiguity this feature
+    # deliberately declines to guess at.
+    profile = _profile(full_name="Maulik Kumar Thakar")
+    first_field = _field(name="first_name")
+    last_field = _field(name="last_name")
+
+    result = ExactFieldMatcher().match([first_field, last_field], profile, [])
+
+    assert result.matched == []
+    assert len(result.unmatched) == 2
