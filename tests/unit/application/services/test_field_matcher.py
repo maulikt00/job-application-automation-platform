@@ -323,3 +323,81 @@ def test_first_last_name_fields_stay_unmatched_for_a_three_token_name() -> None:
 
     assert result.matched == []
     assert len(result.unmatched) == 2
+
+
+# The tests below cover address field matching (ADR-0038), added after
+# real-world validation against a live Workday application form found
+# addressLine1/city/postalCode fields with no equivalent on Profile at
+# all -- verified against the exact real field names/labels observed.
+
+
+def test_address_line1_matches_via_the_real_workday_field() -> None:
+    profile = _profile(address_line1="123 Main St")
+    field = _field(name="addressLine1", label="Address Line 1")
+
+    result = ExactFieldMatcher().match([field], profile, [])
+
+    assert len(result.matched) == 1
+    assert result.matched[0].value == "123 Main St"
+    assert result.matched[0].source == "profile.address_line1"
+
+
+def test_city_matches_via_the_real_workday_field() -> None:
+    profile = _profile(city="Santa Clara")
+    field = _field(name="city", label="City")
+
+    result = ExactFieldMatcher().match([field], profile, [])
+
+    assert len(result.matched) == 1
+    assert result.matched[0].value == "Santa Clara"
+    assert result.matched[0].source == "profile.city"
+
+
+def test_postal_code_matches_via_the_real_workday_field() -> None:
+    profile = _profile(postal_code="95050")
+    field = _field(name="postalCode", label="Postal Code")
+
+    result = ExactFieldMatcher().match([field], profile, [])
+
+    assert len(result.matched) == 1
+    assert result.matched[0].value == "95050"
+    assert result.matched[0].source == "profile.postal_code"
+
+
+def test_state_and_country_match_via_generic_synonyms() -> None:
+    profile = _profile(state="CA", country="USA")
+    state_field = _field(name="state")
+    country_field = _field(name="country")
+
+    result = ExactFieldMatcher().match([state_field, country_field], profile, [])
+
+    values = {m.field.name: m.value for m in result.matched}
+    assert values == {"state": "CA", "country": "USA"}
+
+
+def test_address_line2_matches_via_generic_synonyms() -> None:
+    profile = _profile(address_line2="Apt 4")
+    field = _field(name="apartment")
+
+    result = ExactFieldMatcher().match([field], profile, [])
+
+    assert len(result.matched) == 1
+    assert result.matched[0].value == "Apt 4"
+
+
+def test_address_fields_stay_unmatched_when_profile_has_no_address() -> None:
+    # Matches the same pattern already established for phone: a synonym
+    # match alone is not sufficient if the profile has no value to fill.
+    profile = _profile()  # no address fields set
+    fields = [
+        _field(name="addressLine1"),
+        _field(name="city"),
+        _field(name="state"),
+        _field(name="postalCode"),
+        _field(name="country"),
+    ]
+
+    result = ExactFieldMatcher().match(fields, profile, [])
+
+    assert result.matched == []
+    assert len(result.unmatched) == 5

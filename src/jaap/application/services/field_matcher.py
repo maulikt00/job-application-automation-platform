@@ -49,6 +49,16 @@ _LAST_NAME_SYNONYMS = frozenset(
 )
 _EMAIL_SYNONYMS = frozenset({"email", "e-mail", "email-address"})
 _PHONE_SYNONYMS = frozenset({"phone", "phone-number", "telephone", "mobile", "mobile-number"})
+_ADDRESS_LINE1_SYNONYMS = frozenset(
+    {"address-line-1", "address1", "address-1", "street-address", "address"}
+)
+_ADDRESS_LINE2_SYNONYMS = frozenset(
+    {"address-line-2", "address2", "address-2", "apartment", "apt", "suite"}
+)
+_CITY_SYNONYMS = frozenset({"city", "town"})
+_STATE_SYNONYMS = frozenset({"state", "region", "province", "state-region"})
+_POSTAL_CODE_SYNONYMS = frozenset({"postal-code", "postalcode", "zip", "zip-code", "zipcode"})
+_COUNTRY_SYNONYMS = frozenset({"country"})
 _RESUME_SYNONYMS = frozenset(
     {"resume", "cv", "resume-upload", "upload-resume", "attach-resume", "resume-file", "your-resume"}
 )
@@ -144,6 +154,34 @@ class ExactFieldMatcher:
             name_slug in _PHONE_SYNONYMS or label_slug in _PHONE_SYNONYMS
         ) and profile.phone is not None:
             return MatchedField(field=field, value=profile.phone, source="profile.phone")
+        if (
+            name_slug in _ADDRESS_LINE1_SYNONYMS or label_slug in _ADDRESS_LINE1_SYNONYMS
+        ) and profile.address_line1 is not None:
+            return MatchedField(
+                field=field, value=profile.address_line1, source="profile.address_line1"
+            )
+        if (
+            name_slug in _ADDRESS_LINE2_SYNONYMS or label_slug in _ADDRESS_LINE2_SYNONYMS
+        ) and profile.address_line2 is not None:
+            return MatchedField(
+                field=field, value=profile.address_line2, source="profile.address_line2"
+            )
+        if (name_slug in _CITY_SYNONYMS or label_slug in _CITY_SYNONYMS) and profile.city is not None:
+            return MatchedField(field=field, value=profile.city, source="profile.city")
+        if (
+            name_slug in _STATE_SYNONYMS or label_slug in _STATE_SYNONYMS
+        ) and profile.state is not None:
+            return MatchedField(field=field, value=profile.state, source="profile.state")
+        if (
+            name_slug in _POSTAL_CODE_SYNONYMS or label_slug in _POSTAL_CODE_SYNONYMS
+        ) and profile.postal_code is not None:
+            return MatchedField(
+                field=field, value=profile.postal_code, source="profile.postal_code"
+            )
+        if (
+            name_slug in _COUNTRY_SYNONYMS or label_slug in _COUNTRY_SYNONYMS
+        ) and profile.country is not None:
+            return MatchedField(field=field, value=profile.country, source="profile.country")
 
         # 3. Exact label match against an existing reusable Answer,
         # normalized with the SAME slugify() Answer.question_key itself
