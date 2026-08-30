@@ -9,6 +9,21 @@ which it will move to [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- `docs/adr/0035-workday-signin-field-check-order.md`: a genuinely
+  serious finding from the first real use of `--interactive`. The
+  review completed with no interactive prompt appearing, but the
+  "autofilled" email had actually gone into Workday's own sign-in
+  form's email field, not the application form -- confirmed by the
+  other unmatched fields (a "Password" field, a bot-honeypot field),
+  both characteristic of a login page. Root cause: the sign-in form
+  also has `data-automation-id`-tagged fields, and the field-presence
+  check ran before the sign-in-text check, declaring success on the
+  wrong page.
+- `WorkdayConnector._on_real_application_form()` now checks for a
+  sign-in wall BEFORE ever declaring success on field-presence alone,
+  replacing the bare field-presence check at both call sites. Verified
+  against a full reproduction of the exact scenario (posting -> modal
+  -> Apply Manually -> a login page with real fields).
 - `docs/adr/0034-interactive-signin-pause-retry.md`: a generic
   pause-and-retry mechanism for connectors reporting a sign-in wall,
   discussed explicitly before building -- distinguished from JAAP

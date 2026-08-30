@@ -479,6 +479,22 @@ of Milestones 20-23 had done.
   (removing the recurring sign-in cost entirely) was deliberately
   deferred as its own, separate, future conversation, not folded into
   this feature.
+- ✅ **Workday, `--interactive` first real use** ([ADR-0035](docs/adr/0035-workday-signin-field-check-order.md)):
+  a genuinely serious finding. The run completed "successfully" with no
+  interactive prompt ever appearing -- but the "autofilled" email had
+  actually gone into Workday's own **sign-in form**, not the
+  application form (confirmed by the other unmatched fields: a
+  "Password" field and a bot-honeypot field, both characteristic of a
+  login page, not a job application). Root cause: the sign-in form
+  itself has fields carrying `data-automation-id` too, and the
+  field-presence check ran before the sign-in-text check, so it
+  declared success on the wrong page before ever detecting the wall.
+  Fixed by checking for a sign-in wall FIRST, every time, not only as a
+  fallback when no fields are found. Verified against a full,
+  realistic reproduction of the exact scenario (posting -> modal ->
+  Apply Manually -> a login page with real fields), which now
+  correctly raises `AuthenticationRequiredError` instead of silently
+  succeeding.
 
 ## Phase 5 — Platform & Scale (Future)
 
