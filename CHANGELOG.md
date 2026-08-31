@@ -9,6 +9,24 @@ which it will move to [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- `docs/adr/0040-generic-sign-in-wall-detection.md`: validated the
+  generic, no-connector fallback path against a real, unknown site
+  (IBM's careers page) and found a real, significant gap -- it
+  redirects an unauthenticated session to a login page, the same
+  category of wall Workday's connector already detects, but the
+  generic path had no sign-in-wall awareness at all. Also found and
+  fixed a real bug in the fix's own first draft before it shipped: an
+  early-exit that would have missed a *delayed* redirect entirely.
+- `application/services/sign_in_wall_detector.py`: sign-in-wall
+  detection extracted out of `WorkdayConnector` into a shared module,
+  usable by any connector or the generic CLI fallback path alike.
+- `_check_generic_sign_in_wall()`: the generic fallback path's own
+  sign-in check, gated behind `--interactive` (adds real latency only
+  when explicitly opted into; non-interactive usage is unaffected).
+- `_wait_for_manual_sign_in()` decoupled from `WebsiteConnector` --
+  now takes a plain retry callable, serving both a connector's own
+  navigation and the generic path's sign-in check without duplicating
+  the retry loop's own logic.
 - Confirmatory validation round (a fresh Lever posting, now-complete
   `Profile`): closed the honest caveat named in ADR-0039 --
   `name`/`email`/`phone` all correctly carried over to a second

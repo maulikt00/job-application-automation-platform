@@ -95,6 +95,7 @@ from __future__ import annotations
 
 from jaap.application.interfaces.browser_engine import BrowserAutomationEngine
 from jaap.application.interfaces.form_field_detector import FormFieldDetector
+from jaap.application.services.sign_in_wall_detector import looks_like_sign_in_wall
 from jaap.domain.exceptions import AuthenticationRequiredError, BrowserAutomationError
 from jaap.domain.models.job_posting import JobPlatform
 from jaap.infrastructure.connectors._url_utils import append_apply_path
@@ -106,20 +107,6 @@ _FIELD_PRESENT_SCRIPT = (
     'document.querySelector(\'input[data-automation-id], select[data-automation-id], '
     'textarea[data-automation-id], [role="combobox"][data-automation-id]\') !== null'
 )
-
-# A deliberately simple, general signal -- checked only after the real,
-# confirmed Apply-flow attempt below has already failed to reveal any
-# field. Found necessary via live-site validation (ADR-0031): Workday's
-# own careers site required signing in before any application field
-# could be reached, via every path the "Start Your Application" modal
-# offered except a third-party redirect.
-_SIGN_IN_INDICATOR_SCRIPT = r"""
-(() => {
-  const text = document.body.innerText || "";
-  return /sign in|log in|create.{0,10}account/i.test(text);
-})()
-"""
-
 
 class WorkdayConnector:
     """Satisfies application.interfaces.website_connector.WebsiteConnector."""
@@ -178,7 +165,7 @@ class WorkdayConnector:
         if self._on_real_application_form(engine):
             return
 
-        if engine.evaluate(_SIGN_IN_INDICATOR_SCRIPT):
+        if looks_like_sign_in_wall(engine):
             raise AuthenticationRequiredError(
                 "This Workday posting requires creating an account or "
                 "signing in before the application form can be reached. "
@@ -207,7 +194,7 @@ class WorkdayConnector:
         # ADR-0035: fields being present is necessary but NOT sufficient
         # -- a sign-in wall must be ruled out every time, since Workday's
         # own sign-in form also has data-automation-id-tagged fields.
-        if engine.evaluate(_SIGN_IN_INDICATOR_SCRIPT):
+        if looks_like_sign_in_wall(engine):
             return False
         return self._field_present(engine)
 

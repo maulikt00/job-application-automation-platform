@@ -3,14 +3,16 @@
 from __future__ import annotations
 
 import argparse
+import time
 import uuid
+from collections.abc import Callable
 from pathlib import Path
 from typing import TYPE_CHECKING
 
 from jaap.application.exceptions import JobPostingNotFoundError
 from jaap.application.interfaces.browser_engine import BrowserAutomationEngine
-from jaap.application.interfaces.website_connector import WebsiteConnector
 from jaap.application.services.field_matcher import ExactFieldMatcher
+from jaap.application.services.sign_in_wall_detector import looks_like_sign_in_wall
 from jaap.application.use_cases.attach_resume_to_application import (
     AttachResumeToApplicationUseCase,
 )
@@ -194,9 +196,28 @@ def _handle_review(args: argparse.Namespace, context: Context) -> int:
             except AuthenticationRequiredError as exc:
                 if not args.interactive:
                     raise
-                _wait_for_manual_sign_in(engine, connector, exc)
+                _wait_for_manual_sign_in(
+                    lambda: connector.navigate_to_application_form(engine), exc
+                )
             form_field_detector = connector.get_field_detector(engine)
         else:
+            # ADR-0040: no connector exists for this URL, but that
+            # doesn't mean a sign-in wall can't -- confirmed on a real,
+            # wholly unrelated site (IBM's careers page redirects an
+            # unauthenticated session to login.ibm.com). Only checked
+            # when --interactive is set: the poll adds real, multi-
+            # second latency (waiting for a possible delayed redirect
+            # to complete), only worth paying when the person has
+            # explicitly opted into a more hands-on mode. Without
+            # --interactive, behavior is completely unchanged from
+            # before this fix.
+            if args.interactive:
+                try:
+                    _check_generic_sign_in_wall(engine)
+                except AuthenticationRequiredError as exc:
+                    _wait_for_manual_sign_in(
+                        lambda: _check_generic_sign_in_wall(engine), exc
+                    )
             form_field_detector = PlaywrightFormFieldDetector(engine)
 
         autofill_use_case = AutofillApplicationUseCase(
@@ -242,30 +263,85 @@ def _handle_review(args: argparse.Namespace, context: Context) -> int:
     return 0
 
 
-def _wait_for_manual_sign_in(
+_GENERIC_SIGN_IN_POLL_ATTEMPTS = 12
+_GENERIC_SIGN_IN_POLL_DELAY_SECONDS = 0.5
+
+
+def _check_generic_sign_in_wall(
     engine: BrowserAutomationEngine,
-    connector: WebsiteConnector,
+    poll_attempts: int = _GENERIC_SIGN_IN_POLL_ATTEMPTS,
+    poll_delay_seconds: float = _GENERIC_SIGN_IN_POLL_DELAY_SECONDS,
+) -> None:
+    """For the no-connector, generic fallback path: polls for the full
+    window, raising AuthenticationRequiredError as soon as the page
+    looks like a sign-in wall (ADR-0040) -- only ever called when
+    `--interactive` is set (see `_handle_review`), since this adds real,
+    multi-second latency that's only worth paying when the person has
+    explicitly opted into a more hands-on, interactive mode.
+
+    Found necessary via real-world validation: a real site (IBM's
+    careers page) redirects an unauthenticated session to a login page,
+    but that redirect can take several real seconds to complete, and
+    probing mid-redirect can raise a transient BrowserAutomationError
+    ("execution context was destroyed") -- confirmed directly, not
+    assumed. That transient failure is treated as "not settled yet,"
+    not a hard error.
+
+    Deliberately does NOT return early the first time a check comes back
+    negative -- an earlier version of this function did, and that
+    defeated the entire point: a delayed redirect (confirmed real,
+    taking several seconds) would never be caught if the very first,
+    immediate check were treated as conclusive. Every attempt in the
+    window is used, unless a sign-in wall is found first. If the window
+    elapses without ever finding one, this returns normally (the
+    ordinary, non-gated case) -- field detection will simply find
+    nothing if the page never actually settled to anything at all.
+    """
+    for attempt in range(poll_attempts):
+        try:
+            if looks_like_sign_in_wall(engine):
+                raise AuthenticationRequiredError(
+                    "This page appears to require signing in before an "
+                    "application form can be reached. JAAP does not "
+                    "automate account creation or login, and does not "
+                    "persist browser sessions between runs -- this "
+                    "posting cannot currently be autofilled by JAAP "
+                    "without signing in yourself (see `jaap application "
+                    "review --interactive`)."
+                )
+        except BrowserAutomationError:
+            pass
+        if attempt < poll_attempts - 1:
+            time.sleep(poll_delay_seconds)
+
+
+def _wait_for_manual_sign_in(
+    retry: Callable[[], None],
     error: AuthenticationRequiredError,
 ) -> None:
     """Pauses with the browser still open, letting a human sign in
-    themselves, then retries `navigate_to_application_form()` -- ADR-0034.
+    themselves, then calls `retry()` -- ADR-0034.
+
+    `retry` is a plain callable rather than a `WebsiteConnector`
+    directly (ADR-0040): this same pause-and-retry mechanism now serves
+    both a connector's own `navigate_to_application_form()` and the
+    generic, no-connector fallback path's own sign-in check -- neither
+    of which this function needs to know about specifically.
 
     JAAP still never automates the sign-in step itself; this only
     pauses and gets out of the way while a human does it, then resumes
     automation once they're done. Loops (rather than retrying only
     once) since a real sign-in flow can itself be multi-step (email,
     then password, then a 2FA prompt), so a human may reasonably need
-    more than one attempt before `navigate_to_application_form()`
-    actually succeeds.
+    more than one attempt before `retry()` actually succeeds.
 
-    Also retries on a connector's other exception types (`ValueError`,
-    `BrowserAutomationError`), not just a repeated
-    `AuthenticationRequiredError` -- found necessary via real-world
-    validation (ADR-0036): immediately after signing in, a real site can
-    be in a brief transitional state (mid-redirect, still loading) that
-    matches neither "form found" nor "still requires sign-in," and a
-    human may simply need to wait a moment and press Enter again rather
-    than have the whole command fail outright.
+    Also retries on `ValueError`/`BrowserAutomationError`, not just a
+    repeated `AuthenticationRequiredError` -- found necessary via
+    real-world validation (ADR-0036): immediately after signing in, a
+    real site can be in a brief transitional state (mid-redirect, still
+    loading) that matches neither "form found" nor "still requires
+    sign-in," and a human may simply need to wait a moment and press
+    Enter again rather than have the whole command fail outright.
     """
     print()
     print(f"Sign-in required: {error}")
@@ -278,7 +354,7 @@ def _wait_for_manual_sign_in(
         if response == "q":
             raise error
         try:
-            connector.navigate_to_application_form(engine)
+            retry()
             print("Continuing...")
             return
         except AuthenticationRequiredError as exc:

@@ -1,6 +1,6 @@
-"""Tests for `jaap application review --interactive` (ADR-0034) -- the
-generic pause-and-retry mechanism for a connector reporting
-AuthenticationRequiredError.
+"""Tests for `jaap application review --interactive` (ADR-0034/0040) --
+the generic pause-and-retry mechanism for a connector, or the generic
+no-connector fallback path, reporting AuthenticationRequiredError.
 
 Two different testing strategies, deliberately:
 
@@ -9,20 +9,21 @@ Two different testing strategies, deliberately:
     entry point (`main()`) -- this needs no real browser at all, since
     it must fail before one is ever constructed.
   - The actual pause/retry LOOP logic (`_wait_for_manual_sign_in()`) is
-    tested directly, as an isolated unit, with a minimal fake engine and
-    fake connector -- NOT through the full CLI with a real browser.
-    This sandbox has no X server, so a genuinely headed (non-headless)
-    Playwright browser cannot launch here at all (confirmed directly:
-    it fails with "Missing X server or $DISPLAY" even under `xvfb-run`'s
-    virtual display, which does work, but would impose a new, unwanted
-    system dependency on the whole test suite just for this one
-    mechanism). The retry loop's own logic -- call
-    navigate_to_application_form() again, handle 'q', loop on repeated
-    AuthenticationRequiredError -- does not need a real browser to
-    verify correctly; it needs a connector that behaves in a controlled
-    way, which a fake provides directly. This mirrors the same targeted
-    fake used for WorkdayConnector's own click-exception-handling test
-    (ADR-0032).
+    tested directly, as an isolated unit, with a plain retry callable --
+    NOT through the full CLI with a real browser. This sandbox has no
+    X server, so a genuinely headed (non-headless) Playwright browser
+    cannot launch here at all (confirmed directly: it fails with
+    "Missing X server or $DISPLAY" even under `xvfb-run`'s virtual
+    display, which does work, but would impose a new, unwanted system
+    dependency on the whole test suite just for this one mechanism).
+    The retry loop's own logic -- call `retry()` again, handle 'q', loop
+    on repeated AuthenticationRequiredError -- does not need a real
+    browser to verify correctly; a plain callable that behaves in a
+    controlled way is sufficient. `_wait_for_manual_sign_in()` no longer
+    takes a `WebsiteConnector` directly (ADR-0040): it takes a bare
+    `retry: Callable[[], None]`, since it now serves both a connector's
+    own `navigate_to_application_form()` and the generic fallback
+    path's own sign-in check.
 """
 
 from __future__ import annotations
@@ -86,22 +87,20 @@ def test_interactive_requires_headless_false(tmp_path, capsys) -> None:
     assert "requires a visible browser window" in err
 
 
-# --- Retry-loop logic: tested directly with fakes, no real browser ---
-
-
-class _FakeEngine:
-    """The retry loop only ever calls navigate_to_application_form() on
-    the connector it's given -- it never touches the engine directly
-    itself. An empty object is sufficient; included for type clarity
-    and in case a future version of the loop does need it."""
+# --- Retry-loop logic: tested directly with a plain retry callable ---
 
 
 class _FakeConnectorRaisingNTimes:
+    """A minimal stand-in for whatever `retry()` actually calls (a real
+    connector's navigate_to_application_form, or the generic sign-in
+    check) -- these tests are about the loop's own logic, not any real
+    connector, so a plain call-counting fake is all that's needed."""
+
     def __init__(self, fail_count: int) -> None:
         self._fail_count = fail_count
         self.call_count = 0
 
-    def navigate_to_application_form(self, engine) -> None:
+    def retry(self) -> None:
         self.call_count += 1
         if self.call_count <= self._fail_count:
             raise AuthenticationRequiredError(f"Sign-in required (attempt {self.call_count}).")
@@ -118,7 +117,7 @@ class _FakeConnectorTransientThenSuccess:
     def __init__(self) -> None:
         self.call_count = 0
 
-    def navigate_to_application_form(self, engine) -> None:
+    def retry(self) -> None:
         self.call_count += 1
         if self.call_count == 1:
             raise ValueError(
@@ -128,33 +127,29 @@ class _FakeConnectorTransientThenSuccess:
 
 
 def test_wait_for_manual_sign_in_succeeds_after_one_retry() -> None:
-    connector = _FakeConnectorRaisingNTimes(fail_count=1)
+    fake = _FakeConnectorRaisingNTimes(fail_count=1)
     original_error = AuthenticationRequiredError("Sign-in required (attempt 1).")
 
     with patch("builtins.input", return_value=""):
-        _wait_for_manual_sign_in(_FakeEngine(), connector, original_error)
+        _wait_for_manual_sign_in(fake.retry, original_error)
 
-    assert connector.call_count == 2  # fails once, succeeds on the second attempt
+    assert fake.call_count == 2  # fails once, succeeds on the second attempt
 
 
 def test_wait_for_manual_sign_in_retries_past_a_transient_value_error() -> None:
     # ADR-0036: a generic ValueError right after signing in (the page
     # briefly in a transitional state) must not kill the whole loop --
     # the human should be able to press Enter again and succeed.
-    connector = _FakeConnectorTransientThenSuccess()
+    fake = _FakeConnectorTransientThenSuccess()
 
     with patch("builtins.input", return_value=""):
-        _wait_for_manual_sign_in(
-            _FakeEngine(),
-            connector,
-            AuthenticationRequiredError("Sign-in required."),
-        )
+        _wait_for_manual_sign_in(fake.retry, AuthenticationRequiredError("Sign-in required."))
 
-    assert connector.call_count == 2
+    assert fake.call_count == 2
 
 
 def test_wait_for_manual_sign_in_gives_up_with_the_latest_error_after_a_transient_failure() -> None:
-    connector = _FakeConnectorTransientThenSuccess()
+    fake = _FakeConnectorTransientThenSuccess()
 
     with (
         patch("builtins.input", side_effect=["", "q"]),
@@ -163,42 +158,38 @@ def test_wait_for_manual_sign_in_gives_up_with_the_latest_error_after_a_transien
         # Force a second failure by making call_count never reach the
         # success branch: reuse the same fake but call it enough times
         # that it would have succeeded, then give up before that.
-        _wait_for_manual_sign_in(
-            _FakeEngine(),
-            connector,
-            AuthenticationRequiredError("Sign-in required."),
-        )
+        _wait_for_manual_sign_in(fake.retry, AuthenticationRequiredError("Sign-in required."))
 
 
 def test_wait_for_manual_sign_in_loops_across_multiple_failed_attempts() -> None:
-    connector = _FakeConnectorRaisingNTimes(fail_count=2)
+    fake = _FakeConnectorRaisingNTimes(fail_count=2)
     original_error = AuthenticationRequiredError("Sign-in required (attempt 1).")
 
     with patch("builtins.input", side_effect=["", "", ""]):
-        _wait_for_manual_sign_in(_FakeEngine(), connector, original_error)
+        _wait_for_manual_sign_in(fake.retry, original_error)
 
-    assert connector.call_count == 3  # fails twice, succeeds on the third attempt
+    assert fake.call_count == 3  # fails twice, succeeds on the third attempt
 
 
 def test_wait_for_manual_sign_in_gives_up_when_user_types_q() -> None:
-    connector = _FakeConnectorRaisingNTimes(fail_count=99)
+    fake = _FakeConnectorRaisingNTimes(fail_count=99)
     original_error = AuthenticationRequiredError("Sign-in required (attempt 1).")
 
     with (
         patch("builtins.input", return_value="q"),
         pytest.raises(AuthenticationRequiredError, match="attempt 1"),
     ):
-        _wait_for_manual_sign_in(_FakeEngine(), connector, original_error)
+        _wait_for_manual_sign_in(fake.retry, original_error)
 
-    assert connector.call_count == 0  # gave up before ever retrying
+    assert fake.call_count == 0  # gave up before ever retrying
 
 
 def test_wait_for_manual_sign_in_give_up_is_case_insensitive_and_trims_whitespace() -> None:
-    connector = _FakeConnectorRaisingNTimes(fail_count=99)
+    fake = _FakeConnectorRaisingNTimes(fail_count=99)
     original_error = AuthenticationRequiredError("Sign-in required (attempt 1).")
 
     with (
         patch("builtins.input", return_value="  Q  "),
         pytest.raises(AuthenticationRequiredError),
     ):
-        _wait_for_manual_sign_in(_FakeEngine(), connector, original_error)
+        _wait_for_manual_sign_in(fake.retry, original_error)
