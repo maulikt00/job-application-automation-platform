@@ -561,6 +561,63 @@ directly re-verified against either of those two platforms.
   match, since address is structured (separate line/city/state/postal/
   country) on `Profile` -- correctly left unmatched rather than
   guessing how to combine several fields into one string.
+- ✅ **Generic fallback validated against a real, unknown site**
+  ([ADR-0040](docs/adr/0040-generic-sign-in-wall-detection.md)): tested
+  against a real IBM careers posting (no connector for this platform)
+  specifically to see if the no-connector path holds up beyond the
+  three named platforms. Found a real, significant gap: IBM's careers
+  site redirects an unauthenticated session to a login page -- the
+  same category of wall Workday's connector already detects, but the
+  generic fallback path had zero sign-in-wall awareness at all.
+  Extracted the detection into a shared module, added a generic check
+  gated behind `--interactive` (so non-interactive usage is completely
+  unaffected), and found and fixed a real bug in the first draft before
+  it shipped: an early-exit that would have missed IBM's *delayed*
+  redirect entirely, caught via direct reproduction before being
+  relied upon.
+
+## Phase 6 — Making Real Applications Genuinely Easier (Proposed)
+
+Discussed directly with the project owner after the real-world
+validation above: given a URL (possibly on none of the three named
+platforms, possibly already signed in), can JAAP get further toward a
+finished application with less manual effort? Four ideas, in the
+order agreed to tackle them:
+
+- ✅ Validate the generic fallback against an unknown site -- see
+  ADR-0040 above; this is what surfaced the sign-in-wall gap.
+- ⬜ Semi-automated multi-page flow: fill the current page, then stop
+  and tell the person exactly which button to click to advance, rather
+  than attempting to click through multiple pages automatically.
+  Deliberately NOT fully-automated page-walking -- a real site can
+  label its actual final submit control as "Continue" or "Next," and
+  automatically clicking through every page risks eventually clicking
+  that control by mistake, which would be an irreversible violation of
+  the no-auto-submit boundary (ADR-0001/0012). A human stays in the
+  loop at every page transition, not just at the end.
+- ⬜ Combobox-filling for safe cases (e.g. a country-code dropdown, a
+  saved reusable Answer) -- needs careful scoping so it never widens
+  the EEO exclusion boundary (ADR-0026), which relies on the same
+  combobox detection mechanism staying non-fillable by design.
+- ⬜ Attaching to a real, already-running, already-logged-in Chrome
+  window (via Playwright's `connect_over_cdp()`, an alternative to
+  `launch()`) instead of a fresh, isolated session. Meaningfully
+  different from the persistent-session-storage idea already declined
+  in ADR-0034: JAAP would never touch or store a credential at all,
+  only control a browser the person logged into themselves, in real
+  time. The most architecturally interesting of the four, and the one
+  most deserving its own dedicated design conversation before building
+  it, the same way `--interactive` itself was designed before being
+  built.
+
+Also tracked: a `jaap apply --url <url>` command to reduce the
+repetitive manual copy-pasting of posting/application IDs between
+`seed_job_posting.py`, `application start`, and `application
+attach-resume` -- a real, separate usability idea, not yet designed in
+detail (open questions: whether to auto-detect the platform via the
+connector registry, whether to find-or-create existing postings/
+applications for the same URL rather than duplicating them, and what
+default behavior makes sense when `--company`/`--title` are omitted).
 
 ## Phase 5 — Platform & Scale (Future)
 
