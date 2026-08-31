@@ -83,7 +83,7 @@ python -m playwright install chromium
 pytest tests/unit -v
 ```
 
-429 tests, covering domain models, configuration/logging, the database
+438 tests, covering domain models, configuration/logging, the database
 layer, all six repositories, core use cases, the CLI, browser automation
 including form field detection/autofill/resume upload/the human review
 gate (run against a real headless Chromium instance and a real local
@@ -98,14 +98,16 @@ Chromium), the connector registry wiring them into `jaap application
 review`, a generic `--interactive` pause-and-retry mechanism for a
 sign-in wall (generalized beyond Workday to the no-connector fallback
 path too, after confirming the same pattern on a real, unrelated site),
-a deliberately narrow first/last name splitting feature, Profile
-address fields with a partial-update command and a one-off database
-migration script, and a growing set of fixes found by validating
-against real, live job postings on Lever, Greenhouse, Workday (confirmed
-on two independent tenants, and, for the first time in this project's
-history, reaching a real, authenticated Workday application form), and
-an arbitrary, unconnected site -- including a firm, reinforced boundary
-that JAAP will never automate account creation or sign-in.
+attaching to a real, already-signed-in browser via CDP instead of
+launching a fresh one, a deliberately narrow first/last name splitting
+feature, Profile address fields with a partial-update command and a
+one-off database migration script, and a growing set of fixes found by
+validating against real, live job postings on Lever, Greenhouse,
+Workday (confirmed on two independent tenants, and, for the first time
+in this project's history, reaching a real, authenticated Workday
+application form), and an arbitrary, unconnected site -- including a
+firm, reinforced boundary that JAAP will never automate account
+creation or sign-in.
 
 ## Tech Stack
 

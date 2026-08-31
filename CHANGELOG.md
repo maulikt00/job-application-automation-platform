@@ -9,6 +9,30 @@ which it will move to [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- `docs/adr/0041-attached-browser-engine.md`: JAAP can now attach to a
+  real, already-running, already-signed-in Chrome window via CDP,
+  instead of launching a fresh, isolated browser -- researched directly
+  against Playwright's own official documentation (and a real,
+  filed Playwright GitHub issue on the exact area's genuine ambiguity)
+  before writing any code, given the real stakes of a mistake closing
+  the person's actual browser.
+- `AttachedBrowserEngine`: connects over Chrome's remote-debugging
+  protocol; `close()` never calls `.close()` on the connected browser
+  under any circumstances, verified directly with a dedicated
+  regression test.
+- `jaap application autofill-current-page --profile-id ... [--resume-id
+  ...] [--cdp-url ...]`: a new command reusing `ReviewApplicationUseCase`
+  and the connector registry unchanged, with no job posting record or
+  navigation needed.
+- `PlaywrightBrowserEngine` refactored to share its page-operations
+  logic (`_PageOperationsMixin`) with `AttachedBrowserEngine`, verified
+  as a clean, behavior-preserving change (all 63 pre-existing tests
+  passed unchanged).
+- **Real, honest limitation**: this sandbox has no real Chrome instance
+  with remote debugging enabled, so the actual CDP connection has never
+  been genuinely exercised -- verified so far only with mocks. Careful,
+  deliberate real-world verification (starting with a disposable
+  browser window) is a required next step.
 - `docs/adr/0040-generic-sign-in-wall-detection.md`: validated the
   generic, no-connector fallback path against a real, unknown site
   (IBM's careers page) and found a real, significant gap -- it
