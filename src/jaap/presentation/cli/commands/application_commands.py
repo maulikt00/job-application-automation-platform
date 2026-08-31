@@ -17,13 +17,19 @@ from jaap.application.use_cases.attach_resume_to_application import (
     AttachResumeToApplicationUseCase,
 )
 from jaap.application.use_cases.autofill_application import AutofillApplicationUseCase
-from jaap.application.use_cases.review_application import ReviewApplicationUseCase
+from jaap.application.use_cases.review_application import (
+    ApplicationReview,
+    ReviewApplicationUseCase,
+)
 from jaap.application.use_cases.start_application import StartApplicationUseCase
 from jaap.application.use_cases.submit_application import SubmitApplicationUseCase
 from jaap.domain.exceptions import AuthenticationRequiredError, BrowserAutomationError
 from jaap.domain.models import ApplicationId, JobPostingId, ProfileId, ResumeId
 from jaap.infrastructure.browser.form_field_detector import PlaywrightFormFieldDetector
-from jaap.infrastructure.browser.playwright_engine import PlaywrightBrowserEngine
+from jaap.infrastructure.browser.playwright_engine import (
+    AttachedBrowserEngine,
+    PlaywrightBrowserEngine,
+)
 from jaap.infrastructure.connectors.registry import find_connector
 
 if TYPE_CHECKING:
@@ -91,6 +97,34 @@ def register(subparsers: argparse._SubParsersAction) -> None:
         ),
     )
     review_parser.set_defaults(handler=_handle_review)
+
+    autofill_current_page_parser = application_subparsers.add_parser(
+        "autofill-current-page",
+        help=(
+            "Autofill whatever application form is on the CURRENT tab of "
+            "an already-running, already-signed-in Chrome window (ADR-0041), "
+            "instead of having JAAP launch and navigate its own fresh "
+            "browser. No job posting record is needed -- this connects to "
+            "your real browser and fills in the page you're already on. "
+            "Never submits -- JAAP has no capability to click a submit "
+            "button."
+        ),
+    )
+    autofill_current_page_parser.add_argument("--profile-id", required=True, type=uuid.UUID)
+    autofill_current_page_parser.add_argument("--resume-id", type=uuid.UUID, default=None)
+    autofill_current_page_parser.add_argument("--screenshot-path", type=Path, default=None)
+    autofill_current_page_parser.add_argument(
+        "--cdp-url",
+        default="http://localhost:9222",
+        help=(
+            "Chrome's remote-debugging URL. Start Chrome yourself with "
+            "this port open first (e.g. `chrome.exe "
+            "--remote-debugging-port=9222`), already signed into and "
+            "looking at the application you want autofilled, in its own "
+            "dedicated window with only that one tab open."
+        ),
+    )
+    autofill_current_page_parser.set_defaults(handler=_handle_autofill_current_page)
 
 
 def _handle_start(args: argparse.Namespace, context: Context) -> int:
@@ -240,6 +274,64 @@ def _handle_review(args: argparse.Namespace, context: Context) -> int:
         print(f"Detected platform: {connector.platform_name}")
         print()
 
+    _print_review_report(review)
+    return 0
+
+
+def _handle_autofill_current_page(args: argparse.Namespace, context: Context) -> int:
+    """Fills whatever application form is on the CURRENT tab of a real,
+    already-running Chrome window the person launched and signed into
+    themselves -- ADR-0041. No job posting record, no navigation: the
+    person is expected to already be looking at the right page.
+    """
+    screenshot_path = args.screenshot_path or (
+        context.settings.log_dir / "review_screenshots" / "autofill_current_page.png"
+    )
+
+    with AttachedBrowserEngine(cdp_url=args.cdp_url) as engine:
+        current_url = engine.evaluate("window.location.href")
+
+        # Reuses the SAME connector registry `application review` uses:
+        # if the current page happens to be on a platform JAAP has a
+        # connector for, its own specialized field detector (e.g.
+        # Workday's ARIA-combobox detection) is used automatically. No
+        # navigation step is needed here at all -- the person is
+        # already on the real form, not the job posting page.
+        connector = find_connector(current_url)
+        form_field_detector = (
+            connector.get_field_detector(engine)
+            if connector is not None
+            else PlaywrightFormFieldDetector(engine)
+        )
+
+        autofill_use_case = AutofillApplicationUseCase(
+            browser_engine=engine,
+            form_field_detector=form_field_detector,
+            field_matcher=ExactFieldMatcher(),
+            profile_repository=context.profile_repository,
+            answer_repository=context.answer_repository,
+            resume_repository=context.resume_repository,
+        )
+        review_use_case = ReviewApplicationUseCase(autofill_use_case, engine)
+
+        review = review_use_case.execute(
+            profile_id=ProfileId(args.profile_id),
+            screenshot_path=screenshot_path,
+            resume_id=ResumeId(args.resume_id) if args.resume_id else None,
+        )
+
+    if connector is not None:
+        print(f"Detected platform: {connector.platform_name}")
+        print()
+
+    _print_review_report(review)
+    return 0
+
+
+def _print_review_report(review: ApplicationReview) -> None:
+    """Shared between `application review` and `application
+    autofill-current-page` -- both produce the same kind of
+    ApplicationReview and should report it identically."""
     print(f"Autofilled {len(review.matched)} field(s):")
     for matched in review.matched:
         print(f"  - {matched.field.name} = {matched.value!r}  (from {matched.source})")
@@ -260,7 +352,6 @@ def _handle_review(args: argparse.Namespace, context: Context) -> int:
         " review the screenshot and the unmatched fields above, then"
         " complete submission yourself in your own browser."
     )
-    return 0
 
 
 _GENERIC_SIGN_IN_POLL_ATTEMPTS = 12
