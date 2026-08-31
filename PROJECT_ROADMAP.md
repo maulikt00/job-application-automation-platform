@@ -552,10 +552,15 @@ directly re-verified against either of those two platforms.
   known items (Lever's resume label, custom application questions,
   Workday's comboboxes, persistent sessions) are scoped, accepted
   trade-offs, not oversights.
-- ⬜ Confirmatory round: the now-complete `Profile` against a fresh
-  Greenhouse or Lever posting -- directly closing the one honest caveat
-  ADR-0039 named (address/phone/split-name were built after those two
-  platforms' own validation rounds concluded).
+- ✅ **Confirmatory round** (a fresh Lever posting, now-complete
+  `Profile`): directly closed the one honest caveat ADR-0039 named.
+  `name`/`email`/`phone` all correctly carried over to a second
+  platform; every `eeo[...]` field still correctly excluded regardless
+  of the fuller profile. One new, real, small item found and added to
+  the deferred list: Lever's single combined `location` field has no
+  match, since address is structured (separate line/city/state/postal/
+  country) on `Profile` -- correctly left unmatched rather than
+  guessing how to combine several fields into one string.
 
 ## Phase 5 — Platform & Scale (Future)
 
