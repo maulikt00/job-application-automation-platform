@@ -324,12 +324,18 @@ code — adding a platform means adding a connector.
   verified against the final `SubmittedContentSnapshot` directly. See
   ADR-0024. **This completes Phase 4.**
 
-## Real-World Validation (in progress)
+## Real-World Validation (v1 declared complete — see ADR-0039)
 
 Following the post-Phase-4 checkpoint review's top recommendation:
 before any further Phase 5 work, validate the three connectors against
 actual live postings, not just synthetic test pages -- something none
 of Milestones 20-23 had done.
+
+**v1 status**: declared complete ([ADR-0039](docs/adr/0039-v1-declared-complete.md))
+after the validation record below. One confirmatory round remains
+open: the now-complete `Profile` (address/phone/split-name, all added
+after Lever's and Greenhouse's own rounds concluded) has not yet been
+directly re-verified against either of those two platforms.
 
 - ✅ **Lever, first pass** ([ADR-0025](docs/adr/0025-implicit-label-detection.md)):
   ran `jaap application review` against a real `jobs.lever.co` posting.
@@ -537,6 +543,19 @@ of Milestones 20-23 had done.
   alters existing tables -- verified directly against a simulated
   pre-migration database, confirming existing data survives and the
   script is safely idempotent.
+- ✅ **JAAP v1 declared complete** ([ADR-0039](docs/adr/0039-v1-declared-complete.md)):
+  checked against the post-Phase-4 checkpoint review's own stated bar
+  and confirmed met, platform by platform. Workday specifically reached
+  a real, authenticated application form and correctly autofilled 6 of
+  6 fields with a natural home in `Profile` (split name, full address,
+  phone). Active, open-ended gap-hunting stops here; the remaining
+  known items (Lever's resume label, custom application questions,
+  Workday's comboboxes, persistent sessions) are scoped, accepted
+  trade-offs, not oversights.
+- ⬜ Confirmatory round: the now-complete `Profile` against a fresh
+  Greenhouse or Lever posting -- directly closing the one honest caveat
+  ADR-0039 named (address/phone/split-name were built after those two
+  platforms' own validation rounds concluded).
 
 ## Phase 5 — Platform & Scale (Future)
 
