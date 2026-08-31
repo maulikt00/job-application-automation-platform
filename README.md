@@ -26,17 +26,19 @@ becoming unmaintainable.
 
 ## Status
 
-🚧 Active development. See [PROJECT_ROADMAP.md](PROJECT_ROADMAP.md) for the
-full milestone breakdown. **Phase 1 (Core Domain & Data)**, **Phase 2
-(Browser Automation)**, **Phase 3 (AI Integration)**, and **Phase 4
-(Website Connectors)** are complete: domain models, configuration/logging,
-the SQLite database layer, all six repositories, core use cases, a CLI,
-browser automation through form detection, autofill, resume upload, and
-the human review gate, two AI providers (Claude, Ollama) powering
-AI-generated cover letters, application answers, and resume
-recommendations, and three website connectors (Greenhouse, Lever,
-Workday) actually wired into the CLI's autofill flow via a connector
-registry. **Phase 5 (Platform & Scale)** is next.
+✅ **v1 complete** ([ADR-0039](docs/adr/0039-v1-declared-complete.md)). See
+[PROJECT_ROADMAP.md](PROJECT_ROADMAP.md) for the full milestone
+breakdown. Phases 1-4 (domain models through the CLI, browser
+automation, AI integration, and three website connectors --
+Greenhouse, Lever, Workday) are complete, and real-world validation
+against live postings on all three platforms confirmed the core
+promise: a single user can find a real posting, get correct autofill
+on the actual live page, and receive an honest, safe report of what
+needs manual attention. Workday specifically reached a real,
+authenticated application form and correctly autofilled every field
+with a natural home in a Profile (name, address, phone). A handful of
+known, lower-stakes items remain deliberately deferred (documented in
+PROJECT_ROADMAP.md) -- not oversights, but scoped trade-offs.
 
 ## Architecture
 
@@ -59,11 +61,11 @@ See [PROJECT_ROADMAP.md](PROJECT_ROADMAP.md) for the milestone-level breakdown.
 
 ## Getting Started
 
-> Phases 1-4 are complete: domain models through the CLI, browser
-> automation from field detection through the human review gate, AI
-> integration (Claude, Ollama, AI-generated content), and three website
-> connectors (Greenhouse, Lever, Workday) wired into the autofill flow.
-> Phase 5 (platform & scale) is next.
+> **v1 complete**: domain models through the CLI, browser automation
+> from field detection through the human review gate, AI integration
+> (Claude, Ollama, AI-generated content), and three website connectors
+> (Greenhouse, Lever, Workday) wired into the autofill flow --
+> confirmed against real, live postings on all three platforms.
 
 ```bash
 python -m venv .venv

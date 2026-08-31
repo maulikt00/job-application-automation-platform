@@ -9,6 +9,15 @@ which it will move to [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- `docs/adr/0039-v1-declared-complete.md`: JAAP v1 checked against the
+  post-Phase-4 checkpoint review's own stated bar and declared met.
+  Workday specifically reached a real, authenticated application form
+  and correctly autofilled 6 of 6 fields with a natural home in
+  `Profile`. One honest caveat named, not glossed over: address/phone/
+  split-name were built after Lever's and Greenhouse's own validation
+  rounds concluded, so the full, combined profile hasn't yet been
+  directly re-confirmed against either -- named as the immediate next
+  step, not asserted as already covered.
 - `docs/adr/0038-profile-address-fields.md`: requested directly after
   a real Workday application form showed `addressLine1`/`city`/
   `postalCode` fields with no equivalent on `Profile` at all.
