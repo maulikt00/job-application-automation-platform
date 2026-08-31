@@ -576,16 +576,50 @@ directly re-verified against either of those two platforms.
   redirect entirely, caught via direct reproduction before being
   relied upon.
 
-## Phase 6 — Making Real Applications Genuinely Easier (Proposed)
+## Phase 6 — Making Real Applications Genuinely Easier
 
 Discussed directly with the project owner after the real-world
 validation above: given a URL (possibly on none of the three named
 platforms, possibly already signed in), can JAAP get further toward a
-finished application with less manual effort? Four ideas, in the
-order agreed to tackle them:
+finished application with less manual effort? Four ideas were
+originally proposed in a suggested order; the actual order followed was
+revised after direct discussion, once the project owner's own priority
+became clear.
 
 - ✅ Validate the generic fallback against an unknown site -- see
   ADR-0040 above; this is what surfaced the sign-in-wall gap.
+- ✅ **Attaching to a real, already-signed-in browser** ([ADR-0041](docs/adr/0041-attached-browser-engine.md)):
+  moved ahead of the other two remaining ideas by explicit request --
+  the project owner is willing to handle clicking between pages
+  themselves, and specifically wanted JAAP able to autofill whatever's
+  on the current page of a real, already-logged-in Chrome window. New
+  `AttachedBrowserEngine` connects over Chrome's remote-debugging (CDP)
+  protocol instead of launching a fresh browser; researched directly
+  against Playwright's own official documentation (and a real,
+  filed Playwright GitHub issue showing the exact area is genuinely
+  ambiguous even to Playwright's own users) before writing any code,
+  given the real stakes of a mistake here closing the person's actual
+  browser. The safest possible design was chosen: `close()` never
+  calls `.close()` on the connected browser under any circumstances.
+  New `jaap application autofill-current-page` command reuses
+  `ReviewApplicationUseCase` and the connector registry unchanged.
+  **A real, honest limitation stated directly, not glossed over**:
+  this sandbox has no real Chrome instance with remote debugging
+  enabled, so the actual CDP connection has never been genuinely
+  exercised -- verified so far only with mocks matching Playwright's
+  documented API shape. Real verification, done carefully and
+  deliberately with a disposable browser window first, is a required
+  next step before trusting this for regular use.
+- ⬜ Extending saved-Answer matching to correctly fill radio button
+  groups and checkboxes (e.g. "Are you authorized to work in the
+  US?" as a Yes/No radio pair) -- part of the same original request,
+  but genuinely separate, not-yet-built follow-up work.
+  `AutofillApplicationUseCase`'s current checkbox dispatch only
+  supports a single boolean toggle (an Answer whose text is literally
+  `"true"`), not choosing the correct option among several radio
+  buttons sharing a name. The EEO exclusion boundary (ADR-0026) must
+  not be widened by this work -- explicitly discussed and deferred to
+  its own future conversation, not decided here.
 - ⬜ Semi-automated multi-page flow: fill the current page, then stop
   and tell the person exactly which button to click to advance, rather
   than attempting to click through multiple pages automatically.
@@ -594,21 +628,13 @@ order agreed to tackle them:
   automatically clicking through every page risks eventually clicking
   that control by mistake, which would be an irreversible violation of
   the no-auto-submit boundary (ADR-0001/0012). A human stays in the
-  loop at every page transition, not just at the end.
+  loop at every page transition, not just at the end. Lower priority
+  now that browser-attachment handles the person's own real use case
+  directly (they've said they'll handle page navigation themselves).
 - ⬜ Combobox-filling for safe cases (e.g. a country-code dropdown, a
   saved reusable Answer) -- needs careful scoping so it never widens
   the EEO exclusion boundary (ADR-0026), which relies on the same
   combobox detection mechanism staying non-fillable by design.
-- ⬜ Attaching to a real, already-running, already-logged-in Chrome
-  window (via Playwright's `connect_over_cdp()`, an alternative to
-  `launch()`) instead of a fresh, isolated session. Meaningfully
-  different from the persistent-session-storage idea already declined
-  in ADR-0034: JAAP would never touch or store a credential at all,
-  only control a browser the person logged into themselves, in real
-  time. The most architecturally interesting of the four, and the one
-  most deserving its own dedicated design conversation before building
-  it, the same way `--interactive` itself was designed before being
-  built.
 
 Also tracked: a `jaap apply --url <url>` command to reduce the
 repetitive manual copy-pasting of posting/application IDs between
