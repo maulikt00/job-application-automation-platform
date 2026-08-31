@@ -9,6 +9,16 @@ which it will move to [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- Confirmatory validation round (a fresh Lever posting, now-complete
+  `Profile`): closed the honest caveat named in ADR-0039 --
+  `name`/`email`/`phone` all correctly carried over to a second
+  platform, and every `eeo[...]` field remained correctly excluded
+  regardless of the fuller profile. One new, real item found and added
+  to `docs/adr/0039-v1-declared-complete.md`'s deferred list: Lever's
+  single combined `location` field has no match, since address is
+  structured (separate fields) on `Profile` -- correctly left
+  unmatched rather than guessing how to combine several fields into
+  one string.
 - `docs/adr/0039-v1-declared-complete.md`: JAAP v1 checked against the
   post-Phase-4 checkpoint review's own stated bar and declared met.
   Workday specifically reached a real, authenticated application form

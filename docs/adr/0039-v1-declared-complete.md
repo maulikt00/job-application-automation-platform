@@ -81,6 +81,15 @@ left for later rather than overlooked:
   eliminate) the recurring Workday sign-in cost -- deliberately deferred
   in ADR-0034 pending real usage data, which now exists in limited form
   but has not prompted revisiting this decision.
+- Lever's single, combined `location` field has no equivalent match:
+  found during the confirmatory validation round with the now-complete
+  `Profile`. Not a bug -- Workday's address fields are structured
+  (separate `addressLine1`/`city`/`state`/`postal_code`/`country`),
+  while Lever's is one free-text field, and the matcher correctly
+  declines to guess how to combine several profile fields into one
+  string rather than doing something wrong. A real, separate,
+  small feature (concatenating address components into a single
+  formatted string for this specific shape) if ever revisited.
 
 None of these represent a safety risk or a broken core flow -- they are
 scoped, accepted trade-offs, each with its own ADR-documented reasoning.
